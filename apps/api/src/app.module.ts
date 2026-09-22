@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module';
 import { appConfig } from './config/app.config';
 import { envValidationSchema } from './config/env.validation';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
         },
       },
     }),
+    DatabaseModule,
     HealthModule,
   ],
   controllers: [],

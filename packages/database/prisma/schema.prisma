@@ -1,0 +1,294 @@
+generator client {
+    provider = "prisma-client"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+enum UserStatus {
+    ACTIVE
+    SUSPENDED
+}
+
+enum OrganizationRole {
+    OWNER
+    ADMIN
+    DEVELOPER
+    VIEWER
+}
+
+enum ProjectStatus {
+    ACTIVE
+    ARCHIVED
+}
+
+enum EnvironmentType {
+    PRODUCTION
+    STAGING
+    PREVIEW
+    DEVELOPMENT
+    OTHER
+}
+
+enum ScanStatus {
+    PENDING
+    QUEUED
+    RUNNING
+    COMPLETED
+    FAILED
+    CANCELLED
+}
+
+enum ScanTrigger {
+    MANUAL
+    SCHEDULED
+    API
+    CI
+    PULL_REQUEST
+}
+
+enum DeviceType {
+    DESKTOP
+    MOBILE
+}
+
+enum MetricCategory {
+    PERFORMANCE
+    NETWORK
+    RESOURCE
+    BUNDLE
+    REACT
+    ACCESSIBILITY
+    SECURITY
+    MEMORY
+}
+
+enum FindingCategory {
+    PERFORMANCE
+    NETWORK
+    RESOURCE
+    BUNDLE
+    REACT
+    ACCESSIBILITY
+    SECURITY
+    DEPENDENCY
+    MEMORY
+}
+
+enum FindingSeverity {
+    INFO
+    LOW
+    MEDIUM
+    HIGH
+    CRITICAL
+}
+
+enum FindingStatus {
+    OPEN
+    ACKNOWLEDGED
+    RESOLVED
+    IGNORED
+    REGRESSION
+}
+
+enum FindingConfidence {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+model User {
+    id     String     @id @default(uuid())
+    email  String     @unique
+    name   String?
+    status UserStatus @default(ACTIVE)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    memberships OrganizationMember[]
+
+    @@map("users")
+}
+
+model Organization {
+    id   String @id @default(uuid())
+    name String
+    slug String @unique
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    members  OrganizationMember[]
+    projects Project[]
+
+    @@map("organizations")
+}
+
+model OrganizationMember {
+    id String @id @default(uuid())
+
+    organizationId String
+    userId         String
+
+    role OrganizationRole @default(DEVELOPER)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    organization Organization @relation(fields: [organizationId], references: [id], onUpdate: Cascade)
+
+    user User @relation(fields: [userId], references: [id], onUpdate: Cascade)
+
+    @@unique([organizationId, userId])
+    @@index([userId])
+    @@map("organization_members")
+}
+
+model Project {
+    id String @id @default(uuid())
+
+    organizationId String
+
+    name String
+    slug String
+
+    status ProjectStatus @default(ACTIVE)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    organization Organization @relation(fields: [organizationId], references: [id], onUpdate: Cascade)
+
+    environments Environment[]
+
+    @@unique([organizationId, slug])
+    @@index([organizationId])
+    @@map("projects")
+}
+
+model Environment {
+    id String @id @default(uuid())
+
+    projectId String
+
+    name String
+    url  String
+
+    type EnvironmentType
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    project Project @relation(fields: [projectId], references: [id], onUpdate: Cascade)
+
+    scans Scan[]
+
+    @@unique([projectId, name])
+    @@index([projectId])
+    @@map("environments")
+}
+
+model Scan {
+    id String @id @default(uuid())
+
+    environmentId String
+
+    status  ScanStatus  @default(PENDING)
+    trigger ScanTrigger @default(MANUAL)
+
+    targetUrl String
+
+    deviceType DeviceType @default(DESKTOP)
+
+    browserName    String?
+    browserVersion String?
+
+    startedAt   DateTime?
+    completedAt DateTime?
+
+    failureCode    String?
+    failureMessage String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    environment Environment @relation(fields: [environmentId], references: [id], onUpdate: Cascade)
+
+    metrics  ScanMetric[]
+    findings Finding[]
+
+    @@index([environmentId])
+    @@index([environmentId, createdAt])
+    @@index([status])
+    @@map("scans")
+}
+
+model ScanMetric {
+    id String @id @default(uuid())
+
+    scanId String
+
+    category MetricCategory
+
+    key String
+
+    value Float
+
+    unit String?
+
+    metadata Json?
+
+    createdAt DateTime @default(now())
+
+    scan Scan @relation(fields: [scanId], references: [id], onUpdate: Cascade)
+
+    @@index([scanId])
+    @@index([scanId, category])
+    @@index([scanId, key])
+    @@map("scan_metrics")
+}
+
+model Finding {
+    id String @id @default(uuid())
+
+    scanId String
+
+    fingerprint String
+
+    category   FindingCategory
+    severity   FindingSeverity
+    confidence FindingConfidence
+
+    status FindingStatus @default(OPEN)
+
+    ruleId String
+
+    title       String
+    description String
+
+    evidence Json?
+
+    recommendation String?
+
+    affectedUrl      String?
+    affectedResource String?
+    sourceFile       String?
+    sourceLine       Int?
+
+    firstDetectedAt DateTime @default(now())
+    lastDetectedAt  DateTime @default(now())
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    scan Scan @relation(fields: [scanId], references: [id], onUpdate: Cascade)
+
+    @@unique([scanId, fingerprint])
+    @@index([scanId])
+    @@index([scanId, severity])
+    @@index([fingerprint])
+    @@map("findings")
+}

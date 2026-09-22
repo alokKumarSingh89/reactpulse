@@ -10,4 +10,9 @@ export const envValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace')
     .default('info'),
+  DATABASE_URL: Joi.string()
+    .uri({
+      scheme: ['postgresql', 'postgres'],
+    })
+    .required(),
 });
