@@ -10,12 +10,14 @@ import type {
   DocumentResponseEvidence,
   NetworkRequestEvidence,
 } from './browser.types';
+import { PerformanceCollectorService } from '../performance/performance-collector.service';
 
 @Injectable()
 export class BrowserScannerService {
   constructor(
     private readonly config: ConfigService,
     private readonly targetValidator: TargetValidatorService,
+    private readonly performanceCollector: PerformanceCollectorService,
   ) {}
 
   async scan(targetUrl: string): Promise<BrowserScanResult> {
@@ -51,7 +53,6 @@ export class BrowserScannerService {
     );
 
     const maxRequests = this.config.get<number>('SCANNER_MAX_REQUESTS', 500);
-
     const maxConsoleMessages = this.config.get<number>(
       'SCANNER_MAX_CONSOLE_MESSAGES',
       100,
@@ -167,10 +168,14 @@ export class BrowserScannerService {
        * another redirect-chain boundary.
        */
       await this.targetValidator.validate(finalUrl);
+      const performanceObservation =
+        await this.performanceCollector.collect(page);
 
       const browserVersion = browser.version();
 
       const userAgent = await page.evaluate(() => navigator.userAgent);
+      const navigationStartedAt = performance.now();
+      const navigationDurationMs = performance.now() - navigationStartedAt;
 
       return {
         browser: {
@@ -181,12 +186,11 @@ export class BrowserScannerService {
 
         navigation: {
           requestedUrl: targetUrl,
-
           finalUrl,
 
           status: response?.status() ?? null,
 
-          durationMs,
+          durationMs: navigationDurationMs,
         },
 
         documentResponse,
@@ -194,6 +198,8 @@ export class BrowserScannerService {
         requests,
 
         consoleMessages,
+
+        performance: performanceObservation,
       };
     } finally {
       await context.close().catch(() => undefined);

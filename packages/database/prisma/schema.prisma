@@ -12,6 +12,17 @@ enum UserStatus {
     SUSPENDED
 }
 
+enum ScanEvidenceType {
+    NAVIGATION
+    DOCUMENT_RESPONSE
+    NETWORK_REQUEST
+    BROWSER
+    CONSOLE
+
+    PERFORMANCE
+    LONG_TASK
+}
+
 enum OrganizationRole {
     OWNER
     ADMIN
@@ -339,14 +350,6 @@ model Finding {
     @@index([scanId, severity])
     @@index([fingerprint])
     @@map("findings")
-}
-
-enum ScanEvidenceType {
-    NAVIGATION
-    DOCUMENT_RESPONSE
-    NETWORK_REQUEST
-    BROWSER
-    CONSOLE
 }
 
 model ScanEvidence {

@@ -1,3 +1,7 @@
+// apps/scanner/src/browser/browser.types.ts
+
+import type { PerformanceObservation } from '../performance/performance.types';
+
 export interface BrowserEvidence {
   name: string;
   version: string;
@@ -39,4 +43,7 @@ export interface BrowserScanResult {
   requests: NetworkRequestEvidence[];
 
   consoleMessages: ConsoleEvidence[];
+
+  // Sprint 07
+  performance: PerformanceObservation;
 }

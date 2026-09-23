@@ -4,18 +4,27 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+
 import {
   SCAN_JOB,
   SCAN_QUEUE,
   type ExecuteScanJob,
 } from '@reactpulse/contracts';
+
 import { ScanStatus } from '@reactpulse/database';
+
 import { type Job, Worker } from 'bullmq';
 
 import { BrowserScannerService } from '../browser/browser-scanner.service';
+
 import { DatabaseService } from '../database/database.service';
+
+import { PerformanceMetricService } from '../performance/performance-metric.service';
+
 import { RedisService } from '../queue/redis.service';
+
 import { ScanEvidenceService } from './scan-evidence.service';
+
 import { ScanExecutionError, ScanFailureCode } from './scan-failure';
 
 @Injectable()
@@ -32,6 +41,8 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly browserScanner: BrowserScannerService,
 
     private readonly evidence: ScanEvidenceService,
+
+    private readonly performanceMetrics: PerformanceMetricService,
   ) {}
 
   onModuleInit(): void {
@@ -50,10 +61,9 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
         connection: this.redis.client,
 
         /*
-         * Real browsers are expensive.
-         *
-         * Keep this conservative until
-         * we have resource measurements.
+         * Keep browser concurrency low
+         * until we have worker resource
+         * measurements.
          */
         concurrency: 1,
       },
@@ -81,6 +91,9 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       throw new Error(`Scan ${scanId} does not exist`);
     }
 
+    /*
+     * Terminal states must be idempotent.
+     */
     if (
       scan.status === ScanStatus.COMPLETED ||
       scan.status === ScanStatus.CANCELLED
@@ -101,16 +114,32 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
         startedAt: scan.startedAt ?? new Date(),
 
         completedAt: null,
+
         failureCode: null,
         failureMessage: null,
       },
     });
 
     try {
+      /*
+       * 1. Execute real browser scan.
+       */
       const result = await this.browserScanner.scan(scan.targetUrl);
 
+      /*
+       * 2. Persist raw observations.
+       */
       await this.evidence.replaceBrowserEvidence(scanId, result);
 
+      /*
+       * 3. Persist normalized metrics.
+       */
+      await this.performanceMetrics.replace(scanId, result.performance.metrics);
+
+      /*
+       * 4. Only now is the scan considered
+       * completed.
+       */
       await this.database.client.scan.update({
         where: {
           id: scanId,
@@ -124,16 +153,21 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
           browserName: result.browser.name,
 
           browserVersion: result.browser.version,
+
+          failureCode: null,
+          failureMessage: null,
         },
       });
     } catch (error) {
       const failure = this.normalizeFailure(error);
 
-      /*
-       * Do not mark FAILED until BullMQ
-       * has exhausted its retries.
-       */
-      if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1)) {
+      const configuredAttempts = job.opts.attempts ?? 1;
+
+      const currentAttempt = job.attemptsMade + 1;
+
+      const finalAttempt = currentAttempt >= configuredAttempts;
+
+      if (finalAttempt) {
         await this.database.client.scan.update({
           where: {
             id: scanId,
@@ -151,9 +185,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
         });
       } else {
         /*
-         * The job will be retried, so
-         * return it to QUEUED from our
-         * domain perspective.
+         * BullMQ will retry the job.
          */
         await this.database.client.scan.update({
           where: {
@@ -162,6 +194,8 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
 
           data: {
             status: ScanStatus.QUEUED,
+
+            completedAt: null,
 
             failureCode: failure.code,
 
@@ -181,6 +215,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     if (error instanceof ScanExecutionError) {
       return {
         code: error.code,
+
         message: error.message,
       };
     }
