@@ -5,20 +5,22 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { HttpAdapterHost } from '@nestjs/core';
 
-interface ErrorResponse {
-  statusCode: number;
-  message: string | string[];
+interface NestErrorResponse {
+  message?: string | string[];
   error?: string;
+  statusCode?: number;
 }
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
+    const { httpAdapter } = this.httpAdapterHost;
+
     const context = host.switchToHttp();
-    const response = context.getResponse<Response>();
-    const request = context.getRequest<Request>();
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -37,19 +39,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
         typeof exceptionResponse === 'object' &&
         exceptionResponse !== null
       ) {
-        const body = exceptionResponse as Partial<ErrorResponse>;
+        const response = exceptionResponse as NestErrorResponse;
 
-        message = body.message ?? message;
-        error = body.error ?? error;
+        message = response.message ?? message;
+
+        error = response.error ?? error;
       }
     }
 
-    response.status(statusCode).json({
+    const responseBody = {
       statusCode,
       message,
       error,
-      path: request.url,
+      path: httpAdapter.getRequestUrl(context.getRequest()),
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    httpAdapter.reply(context.getResponse(), responseBody, statusCode);
   }
 }

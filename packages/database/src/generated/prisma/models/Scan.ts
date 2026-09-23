@@ -588,10 +588,6 @@ export type EnumDeviceTypeFieldUpdateOperationsInput = {
   set?: $Enums.DeviceType
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type ScanCreateNestedOneWithoutMetricsInput = {
   create?: Prisma.XOR<Prisma.ScanCreateWithoutMetricsInput, Prisma.ScanUncheckedCreateWithoutMetricsInput>
   connectOrCreate?: Prisma.ScanCreateOrConnectWithoutMetricsInput

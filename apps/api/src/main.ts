@@ -3,7 +3,6 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import { ValidationPipe } from '@nestjs/common';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
@@ -20,8 +19,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  app.useGlobalFilters(new HttpExceptionFilter());
 
   app.enableShutdownHooks();
 
