@@ -5,11 +5,16 @@ import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from './database/database.module';
 import { RedisService } from './queue/redis.service';
 import { ScanProcessor } from './scans/scan.processor';
+import { envValidationSchema } from './config/env.validation';
+import { TargetValidatorService } from './security/target-validator.service';
+import { BrowserScannerService } from './browser/browser-scanner.service';
+import { ScanEvidenceService } from './scans/scan-evidence.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: envValidationSchema,
     }),
 
     LoggerModule.forRoot({
@@ -32,6 +37,12 @@ import { ScanProcessor } from './scans/scan.processor';
     DatabaseModule,
   ],
 
-  providers: [RedisService, ScanProcessor],
+  providers: [
+    RedisService,
+    TargetValidatorService,
+    BrowserScannerService,
+    ScanProcessor,
+    ScanEvidenceService,
+  ],
 })
 export class AppModule {}

@@ -60,7 +60,8 @@ export const ModelName = {
   Environment: 'Environment',
   Scan: 'Scan',
   ScanMetric: 'ScanMetric',
-  Finding: 'Finding'
+  Finding: 'Finding',
+  ScanEvidence: 'ScanEvidence'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -226,6 +227,18 @@ export const FindingScalarFieldEnum = {
 export type FindingScalarFieldEnum = (typeof FindingScalarFieldEnum)[keyof typeof FindingScalarFieldEnum]
 
 
+export const ScanEvidenceScalarFieldEnum = {
+  id: 'id',
+  scanId: 'scanId',
+  type: 'type',
+  sequence: 'sequence',
+  data: 'data',
+  createdAt: 'createdAt'
+} as const
+
+export type ScanEvidenceScalarFieldEnum = (typeof ScanEvidenceScalarFieldEnum)[keyof typeof ScanEvidenceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -240,6 +253,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
