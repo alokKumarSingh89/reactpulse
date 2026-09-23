@@ -11,6 +11,9 @@ import { AuthModule } from './auth/auth.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ProjectsModule } from './projects/projects.module';
+import { EnvironmentsModule } from './environments/environments.module';
+import { UrlPolicyModule } from './security/url/url-policy.module';
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     HealthModule,
     AuthModule,
     OrganizationsModule,
+    ProjectsModule,
+    EnvironmentsModule,
+    UrlPolicyModule,
   ],
   controllers: [],
   providers: [
