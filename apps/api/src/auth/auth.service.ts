@@ -174,7 +174,44 @@ export class AuthService {
       },
     });
   }
+  async me(userId: string) {
+    const user = await this.database.client.user.findUnique({
+      where: {
+        id: userId,
+      },
 
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        status: true,
+
+        memberships: {
+          select: {
+            role: true,
+
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    return user;
+  }
   private async createSession(userId: string, metadata: RequestMetadata) {
     const sessionTtlDays = this.configService.get<number>(
       'SESSION_TTL_DAYS',
