@@ -20,4 +20,7 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_TTL: Joi.string().default('15m'),
 
   SESSION_TTL_DAYS: Joi.number().integer().positive().default(30),
+  REDIS_HOST: Joi.string().required(),
+
+  REDIS_PORT: Joi.number().port().default(6379),
 });

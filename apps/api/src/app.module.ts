@@ -14,6 +14,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ProjectsModule } from './projects/projects.module';
 import { EnvironmentsModule } from './environments/environments.module';
 import { UrlPolicyModule } from './security/url/url-policy.module';
+import { QueueModule } from './queue/queue.module';
+import { ScansModule } from './scans/scans.module';
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { UrlPolicyModule } from './security/url/url-policy.module';
     ProjectsModule,
     EnvironmentsModule,
     UrlPolicyModule,
+    QueueModule,
+    ScansModule,
   ],
   controllers: [],
   providers: [
