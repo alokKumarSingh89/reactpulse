@@ -89,3 +89,8 @@ export type ScanMetric = Prisma.ScanMetricModel
  * 
  */
 export type Finding = Prisma.FindingModel
+/**
+ * Model ScanEvidence
+ * 
+ */
+export type ScanEvidence = Prisma.ScanEvidenceModel

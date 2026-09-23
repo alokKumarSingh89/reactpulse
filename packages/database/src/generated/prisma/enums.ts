@@ -144,3 +144,14 @@ export const SessionStatus = {
 } as const
 
 export type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus]
+
+
+export const ScanEvidenceType = {
+  NAVIGATION: 'NAVIGATION',
+  DOCUMENT_RESPONSE: 'DOCUMENT_RESPONSE',
+  NETWORK_REQUEST: 'NETWORK_REQUEST',
+  BROWSER: 'BROWSER',
+  CONSOLE: 'CONSOLE'
+} as const
+
+export type ScanEvidenceType = (typeof ScanEvidenceType)[keyof typeof ScanEvidenceType]

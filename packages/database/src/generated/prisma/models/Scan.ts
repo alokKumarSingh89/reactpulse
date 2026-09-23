@@ -257,6 +257,7 @@ export type ScanWhereInput = {
   environment?: Prisma.XOR<Prisma.EnvironmentScalarRelationFilter, Prisma.EnvironmentWhereInput>
   metrics?: Prisma.ScanMetricListRelationFilter
   findings?: Prisma.FindingListRelationFilter
+  evidence?: Prisma.ScanEvidenceListRelationFilter
 }
 
 export type ScanOrderByWithRelationInput = {
@@ -277,6 +278,7 @@ export type ScanOrderByWithRelationInput = {
   environment?: Prisma.EnvironmentOrderByWithRelationInput
   metrics?: Prisma.ScanMetricOrderByRelationAggregateInput
   findings?: Prisma.FindingOrderByRelationAggregateInput
+  evidence?: Prisma.ScanEvidenceOrderByRelationAggregateInput
 }
 
 export type ScanWhereUniqueInput = Prisma.AtLeast<{
@@ -300,6 +302,7 @@ export type ScanWhereUniqueInput = Prisma.AtLeast<{
   environment?: Prisma.XOR<Prisma.EnvironmentScalarRelationFilter, Prisma.EnvironmentWhereInput>
   metrics?: Prisma.ScanMetricListRelationFilter
   findings?: Prisma.FindingListRelationFilter
+  evidence?: Prisma.ScanEvidenceListRelationFilter
 }, "id">
 
 export type ScanOrderByWithAggregationInput = {
@@ -359,6 +362,7 @@ export type ScanCreateInput = {
   environment: Prisma.EnvironmentCreateNestedOneWithoutScansInput
   metrics?: Prisma.ScanMetricCreateNestedManyWithoutScanInput
   findings?: Prisma.FindingCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceCreateNestedManyWithoutScanInput
 }
 
 export type ScanUncheckedCreateInput = {
@@ -378,6 +382,7 @@ export type ScanUncheckedCreateInput = {
   updatedAt?: Date | string
   metrics?: Prisma.ScanMetricUncheckedCreateNestedManyWithoutScanInput
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceUncheckedCreateNestedManyWithoutScanInput
 }
 
 export type ScanUpdateInput = {
@@ -397,6 +402,7 @@ export type ScanUpdateInput = {
   environment?: Prisma.EnvironmentUpdateOneRequiredWithoutScansNestedInput
   metrics?: Prisma.ScanMetricUpdateManyWithoutScanNestedInput
   findings?: Prisma.FindingUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUpdateManyWithoutScanNestedInput
 }
 
 export type ScanUncheckedUpdateInput = {
@@ -416,6 +422,7 @@ export type ScanUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   metrics?: Prisma.ScanMetricUncheckedUpdateManyWithoutScanNestedInput
   findings?: Prisma.FindingUncheckedUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUncheckedUpdateManyWithoutScanNestedInput
 }
 
 export type ScanCreateManyInput = {
@@ -616,6 +623,20 @@ export type ScanUpdateOneRequiredWithoutFindingsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ScanUpdateToOneWithWhereWithoutFindingsInput, Prisma.ScanUpdateWithoutFindingsInput>, Prisma.ScanUncheckedUpdateWithoutFindingsInput>
 }
 
+export type ScanCreateNestedOneWithoutEvidenceInput = {
+  create?: Prisma.XOR<Prisma.ScanCreateWithoutEvidenceInput, Prisma.ScanUncheckedCreateWithoutEvidenceInput>
+  connectOrCreate?: Prisma.ScanCreateOrConnectWithoutEvidenceInput
+  connect?: Prisma.ScanWhereUniqueInput
+}
+
+export type ScanUpdateOneRequiredWithoutEvidenceNestedInput = {
+  create?: Prisma.XOR<Prisma.ScanCreateWithoutEvidenceInput, Prisma.ScanUncheckedCreateWithoutEvidenceInput>
+  connectOrCreate?: Prisma.ScanCreateOrConnectWithoutEvidenceInput
+  upsert?: Prisma.ScanUpsertWithoutEvidenceInput
+  connect?: Prisma.ScanWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ScanUpdateToOneWithWhereWithoutEvidenceInput, Prisma.ScanUpdateWithoutEvidenceInput>, Prisma.ScanUncheckedUpdateWithoutEvidenceInput>
+}
+
 export type ScanCreateWithoutEnvironmentInput = {
   id?: string
   status?: $Enums.ScanStatus
@@ -632,6 +653,7 @@ export type ScanCreateWithoutEnvironmentInput = {
   updatedAt?: Date | string
   metrics?: Prisma.ScanMetricCreateNestedManyWithoutScanInput
   findings?: Prisma.FindingCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceCreateNestedManyWithoutScanInput
 }
 
 export type ScanUncheckedCreateWithoutEnvironmentInput = {
@@ -650,6 +672,7 @@ export type ScanUncheckedCreateWithoutEnvironmentInput = {
   updatedAt?: Date | string
   metrics?: Prisma.ScanMetricUncheckedCreateNestedManyWithoutScanInput
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceUncheckedCreateNestedManyWithoutScanInput
 }
 
 export type ScanCreateOrConnectWithoutEnvironmentInput = {
@@ -714,6 +737,7 @@ export type ScanCreateWithoutMetricsInput = {
   updatedAt?: Date | string
   environment: Prisma.EnvironmentCreateNestedOneWithoutScansInput
   findings?: Prisma.FindingCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceCreateNestedManyWithoutScanInput
 }
 
 export type ScanUncheckedCreateWithoutMetricsInput = {
@@ -732,6 +756,7 @@ export type ScanUncheckedCreateWithoutMetricsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceUncheckedCreateNestedManyWithoutScanInput
 }
 
 export type ScanCreateOrConnectWithoutMetricsInput = {
@@ -766,6 +791,7 @@ export type ScanUpdateWithoutMetricsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   environment?: Prisma.EnvironmentUpdateOneRequiredWithoutScansNestedInput
   findings?: Prisma.FindingUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUpdateManyWithoutScanNestedInput
 }
 
 export type ScanUncheckedUpdateWithoutMetricsInput = {
@@ -784,6 +810,7 @@ export type ScanUncheckedUpdateWithoutMetricsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   findings?: Prisma.FindingUncheckedUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUncheckedUpdateManyWithoutScanNestedInput
 }
 
 export type ScanCreateWithoutFindingsInput = {
@@ -802,6 +829,7 @@ export type ScanCreateWithoutFindingsInput = {
   updatedAt?: Date | string
   environment: Prisma.EnvironmentCreateNestedOneWithoutScansInput
   metrics?: Prisma.ScanMetricCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceCreateNestedManyWithoutScanInput
 }
 
 export type ScanUncheckedCreateWithoutFindingsInput = {
@@ -820,6 +848,7 @@ export type ScanUncheckedCreateWithoutFindingsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   metrics?: Prisma.ScanMetricUncheckedCreateNestedManyWithoutScanInput
+  evidence?: Prisma.ScanEvidenceUncheckedCreateNestedManyWithoutScanInput
 }
 
 export type ScanCreateOrConnectWithoutFindingsInput = {
@@ -854,6 +883,7 @@ export type ScanUpdateWithoutFindingsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   environment?: Prisma.EnvironmentUpdateOneRequiredWithoutScansNestedInput
   metrics?: Prisma.ScanMetricUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUpdateManyWithoutScanNestedInput
 }
 
 export type ScanUncheckedUpdateWithoutFindingsInput = {
@@ -872,6 +902,99 @@ export type ScanUncheckedUpdateWithoutFindingsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   metrics?: Prisma.ScanMetricUncheckedUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUncheckedUpdateManyWithoutScanNestedInput
+}
+
+export type ScanCreateWithoutEvidenceInput = {
+  id?: string
+  status?: $Enums.ScanStatus
+  trigger?: $Enums.ScanTrigger
+  targetUrl: string
+  deviceType?: $Enums.DeviceType
+  browserName?: string | null
+  browserVersion?: string | null
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  failureCode?: string | null
+  failureMessage?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  environment: Prisma.EnvironmentCreateNestedOneWithoutScansInput
+  metrics?: Prisma.ScanMetricCreateNestedManyWithoutScanInput
+  findings?: Prisma.FindingCreateNestedManyWithoutScanInput
+}
+
+export type ScanUncheckedCreateWithoutEvidenceInput = {
+  id?: string
+  environmentId: string
+  status?: $Enums.ScanStatus
+  trigger?: $Enums.ScanTrigger
+  targetUrl: string
+  deviceType?: $Enums.DeviceType
+  browserName?: string | null
+  browserVersion?: string | null
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  failureCode?: string | null
+  failureMessage?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  metrics?: Prisma.ScanMetricUncheckedCreateNestedManyWithoutScanInput
+  findings?: Prisma.FindingUncheckedCreateNestedManyWithoutScanInput
+}
+
+export type ScanCreateOrConnectWithoutEvidenceInput = {
+  where: Prisma.ScanWhereUniqueInput
+  create: Prisma.XOR<Prisma.ScanCreateWithoutEvidenceInput, Prisma.ScanUncheckedCreateWithoutEvidenceInput>
+}
+
+export type ScanUpsertWithoutEvidenceInput = {
+  update: Prisma.XOR<Prisma.ScanUpdateWithoutEvidenceInput, Prisma.ScanUncheckedUpdateWithoutEvidenceInput>
+  create: Prisma.XOR<Prisma.ScanCreateWithoutEvidenceInput, Prisma.ScanUncheckedCreateWithoutEvidenceInput>
+  where?: Prisma.ScanWhereInput
+}
+
+export type ScanUpdateToOneWithWhereWithoutEvidenceInput = {
+  where?: Prisma.ScanWhereInput
+  data: Prisma.XOR<Prisma.ScanUpdateWithoutEvidenceInput, Prisma.ScanUncheckedUpdateWithoutEvidenceInput>
+}
+
+export type ScanUpdateWithoutEvidenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  trigger?: Prisma.EnumScanTriggerFieldUpdateOperationsInput | $Enums.ScanTrigger
+  targetUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  deviceType?: Prisma.EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+  browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  failureCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  failureMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  environment?: Prisma.EnvironmentUpdateOneRequiredWithoutScansNestedInput
+  metrics?: Prisma.ScanMetricUpdateManyWithoutScanNestedInput
+  findings?: Prisma.FindingUpdateManyWithoutScanNestedInput
+}
+
+export type ScanUncheckedUpdateWithoutEvidenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  environmentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  trigger?: Prisma.EnumScanTriggerFieldUpdateOperationsInput | $Enums.ScanTrigger
+  targetUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  deviceType?: Prisma.EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
+  browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  failureCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  failureMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  metrics?: Prisma.ScanMetricUncheckedUpdateManyWithoutScanNestedInput
+  findings?: Prisma.FindingUncheckedUpdateManyWithoutScanNestedInput
 }
 
 export type ScanCreateManyEnvironmentInput = {
@@ -906,6 +1029,7 @@ export type ScanUpdateWithoutEnvironmentInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   metrics?: Prisma.ScanMetricUpdateManyWithoutScanNestedInput
   findings?: Prisma.FindingUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUpdateManyWithoutScanNestedInput
 }
 
 export type ScanUncheckedUpdateWithoutEnvironmentInput = {
@@ -924,6 +1048,7 @@ export type ScanUncheckedUpdateWithoutEnvironmentInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   metrics?: Prisma.ScanMetricUncheckedUpdateManyWithoutScanNestedInput
   findings?: Prisma.FindingUncheckedUpdateManyWithoutScanNestedInput
+  evidence?: Prisma.ScanEvidenceUncheckedUpdateManyWithoutScanNestedInput
 }
 
 export type ScanUncheckedUpdateManyWithoutEnvironmentInput = {
@@ -950,11 +1075,13 @@ export type ScanUncheckedUpdateManyWithoutEnvironmentInput = {
 export type ScanCountOutputType = {
   metrics: number
   findings: number
+  evidence: number
 }
 
 export type ScanCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   metrics?: boolean | ScanCountOutputTypeCountMetricsArgs
   findings?: boolean | ScanCountOutputTypeCountFindingsArgs
+  evidence?: boolean | ScanCountOutputTypeCountEvidenceArgs
 }
 
 /**
@@ -981,6 +1108,13 @@ export type ScanCountOutputTypeCountFindingsArgs<ExtArgs extends runtime.Types.E
   where?: Prisma.FindingWhereInput
 }
 
+/**
+ * ScanCountOutputType without action
+ */
+export type ScanCountOutputTypeCountEvidenceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ScanEvidenceWhereInput
+}
+
 
 export type ScanSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1000,6 +1134,7 @@ export type ScanSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   environment?: boolean | Prisma.EnvironmentDefaultArgs<ExtArgs>
   metrics?: boolean | Prisma.Scan$metricsArgs<ExtArgs>
   findings?: boolean | Prisma.Scan$findingsArgs<ExtArgs>
+  evidence?: boolean | Prisma.Scan$evidenceArgs<ExtArgs>
   _count?: boolean | Prisma.ScanCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scan"]>
 
@@ -1061,6 +1196,7 @@ export type ScanInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   environment?: boolean | Prisma.EnvironmentDefaultArgs<ExtArgs>
   metrics?: boolean | Prisma.Scan$metricsArgs<ExtArgs>
   findings?: boolean | Prisma.Scan$findingsArgs<ExtArgs>
+  evidence?: boolean | Prisma.Scan$evidenceArgs<ExtArgs>
   _count?: boolean | Prisma.ScanCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ScanIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1076,6 +1212,7 @@ export type $ScanPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     environment: Prisma.$EnvironmentPayload<ExtArgs>
     metrics: Prisma.$ScanMetricPayload<ExtArgs>[]
     findings: Prisma.$FindingPayload<ExtArgs>[]
+    evidence: Prisma.$ScanEvidencePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1489,6 +1626,7 @@ export interface Prisma__ScanClient<T, Null = never, ExtArgs extends runtime.Typ
   environment<T extends Prisma.EnvironmentDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.EnvironmentDefaultArgs<ExtArgs>>): Prisma.Prisma__EnvironmentClient<runtime.Types.Result.GetResult<Prisma.$EnvironmentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   metrics<T extends Prisma.Scan$metricsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Scan$metricsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScanMetricPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   findings<T extends Prisma.Scan$findingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Scan$findingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FindingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  evidence<T extends Prisma.Scan$evidenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Scan$evidenceArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScanEvidencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1978,6 +2116,30 @@ export type Scan$findingsArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   take?: number
   skip?: number
   distinct?: Prisma.FindingScalarFieldEnum | Prisma.FindingScalarFieldEnum[]
+}
+
+/**
+ * Scan.evidence
+ */
+export type Scan$evidenceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ScanEvidence
+   */
+  select?: Prisma.ScanEvidenceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ScanEvidence
+   */
+  omit?: Prisma.ScanEvidenceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ScanEvidenceInclude<ExtArgs> | null
+  where?: Prisma.ScanEvidenceWhereInput
+  orderBy?: Prisma.ScanEvidenceOrderByWithRelationInput | Prisma.ScanEvidenceOrderByWithRelationInput[]
+  cursor?: Prisma.ScanEvidenceWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ScanEvidenceScalarFieldEnum | Prisma.ScanEvidenceScalarFieldEnum[]
 }
 
 /**

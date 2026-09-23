@@ -262,10 +262,11 @@ model Scan {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    environment Environment @relation(fields: [environmentId], references: [id], onUpdate: Cascade)
+    environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
 
     metrics  ScanMetric[]
     findings Finding[]
+    evidence ScanEvidence[]
 
     @@index([environmentId])
     @@index([environmentId, createdAt])
@@ -338,4 +339,33 @@ model Finding {
     @@index([scanId, severity])
     @@index([fingerprint])
     @@map("findings")
+}
+
+enum ScanEvidenceType {
+    NAVIGATION
+    DOCUMENT_RESPONSE
+    NETWORK_REQUEST
+    BROWSER
+    CONSOLE
+}
+
+model ScanEvidence {
+    id String @id @default(uuid())
+
+    scanId String
+
+    type ScanEvidenceType
+
+    sequence Int
+
+    data Json
+
+    createdAt DateTime @default(now())
+
+    scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+    @@unique([scanId, type, sequence])
+    @@index([scanId])
+    @@index([scanId, type])
+    @@map("scan_evidence")
 }
