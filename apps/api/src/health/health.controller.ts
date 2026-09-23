@@ -6,6 +6,7 @@ import {
 } from '@nestjs/terminus';
 
 import { DatabaseHealthIndicator } from './database.health';
+import { RedisHealthIndicator } from './redis.health';
 
 @Controller('health')
 export class HealthController {
@@ -13,6 +14,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
     private readonly database: DatabaseHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
   ) {}
 
   @Get()
@@ -33,6 +35,9 @@ export class HealthController {
   @Get('ready')
   @HealthCheck()
   readiness() {
-    return this.health.check([() => this.database.isHealthy('database')]);
+    return this.health.check([
+      () => this.database.isHealthy('database'),
+      () => this.redis.isHealthy('redis'),
+    ]);
   }
 }
