@@ -12,6 +12,17 @@ enum UserStatus {
     SUSPENDED
 }
 
+enum ScanEvidenceType {
+    NAVIGATION
+    DOCUMENT_RESPONSE
+    NETWORK_REQUEST
+    BROWSER
+    CONSOLE
+
+    PERFORMANCE
+    LONG_TASK
+}
+
 enum OrganizationRole {
     OWNER
     ADMIN

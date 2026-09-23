@@ -17,6 +17,19 @@ export const UserStatus = {
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus]
 
 
+export const ScanEvidenceType = {
+  NAVIGATION: 'NAVIGATION',
+  DOCUMENT_RESPONSE: 'DOCUMENT_RESPONSE',
+  NETWORK_REQUEST: 'NETWORK_REQUEST',
+  BROWSER: 'BROWSER',
+  CONSOLE: 'CONSOLE',
+  PERFORMANCE: 'PERFORMANCE',
+  LONG_TASK: 'LONG_TASK'
+} as const
+
+export type ScanEvidenceType = (typeof ScanEvidenceType)[keyof typeof ScanEvidenceType]
+
+
 export const OrganizationRole = {
   OWNER: 'OWNER',
   ADMIN: 'ADMIN',
