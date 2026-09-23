@@ -352,14 +352,6 @@ model Finding {
     @@map("findings")
 }
 
-enum ScanEvidenceType {
-    NAVIGATION
-    DOCUMENT_RESPONSE
-    NETWORK_REQUEST
-    BROWSER
-    CONSOLE
-}
-
 model ScanEvidence {
     id String @id @default(uuid())
 

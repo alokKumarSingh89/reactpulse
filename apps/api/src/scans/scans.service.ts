@@ -98,6 +98,7 @@ export class ScansService {
     const scan = await this.database.client.scan.findFirst({
       where: {
         id: scanId,
+
         environmentId,
 
         environment: {
@@ -111,18 +112,38 @@ export class ScansService {
 
       select: {
         id: true,
+
         status: true,
         trigger: true,
+
         targetUrl: true,
         deviceType: true,
+
         browserName: true,
         browserVersion: true,
+
         startedAt: true,
         completedAt: true,
+
         failureCode: true,
         failureMessage: true,
+
         createdAt: true,
         updatedAt: true,
+
+        metrics: {
+          select: {
+            category: true,
+            key: true,
+            value: true,
+            unit: true,
+            metadata: true,
+          },
+
+          orderBy: {
+            key: 'asc',
+          },
+        },
       },
     });
 

@@ -20,10 +20,14 @@ import { ScanEvidenceService } from './scans/scan-evidence.service';
 
 import { ScanProcessor } from './scans/scan.processor';
 
+import { TargetValidatorService } from './security/target-validator.service';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+
+      validationSchema: envValidationSchema,
     }),
 
     LoggerModule.forRoot({
@@ -48,6 +52,14 @@ import { ScanProcessor } from './scans/scan.processor';
     DatabaseModule,
   ],
 
-  providers: [RedisService, ScanProcessor],
+  providers: [
+    RedisService,
+    TargetValidatorService,
+    PerformanceCollectorService,
+    PerformanceMetricService,
+    BrowserScannerService,
+    ScanEvidenceService,
+    ScanProcessor,
+  ],
 })
 export class AppModule {}
