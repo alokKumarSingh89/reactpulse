@@ -406,7 +406,8 @@ export const ModelName = {
   Environment: 'Environment',
   Scan: 'Scan',
   ScanMetric: 'ScanMetric',
-  Finding: 'Finding'
+  Finding: 'Finding',
+  ScanEvidence: 'ScanEvidence'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -422,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "credential" | "session" | "organization" | "organizationMember" | "project" | "environment" | "scan" | "scanMetric" | "finding"
+    modelProps: "user" | "credential" | "session" | "organization" | "organizationMember" | "project" | "environment" | "scan" | "scanMetric" | "finding" | "scanEvidence"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1166,6 +1167,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ScanEvidence: {
+      payload: Prisma.$ScanEvidencePayload<ExtArgs>
+      fields: Prisma.ScanEvidenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ScanEvidenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ScanEvidenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        findFirst: {
+          args: Prisma.ScanEvidenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ScanEvidenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        findMany: {
+          args: Prisma.ScanEvidenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>[]
+        }
+        create: {
+          args: Prisma.ScanEvidenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        createMany: {
+          args: Prisma.ScanEvidenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ScanEvidenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>[]
+        }
+        delete: {
+          args: Prisma.ScanEvidenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        update: {
+          args: Prisma.ScanEvidenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        deleteMany: {
+          args: Prisma.ScanEvidenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ScanEvidenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ScanEvidenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>[]
+        }
+        upsert: {
+          args: Prisma.ScanEvidenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanEvidencePayload>
+        }
+        aggregate: {
+          args: Prisma.ScanEvidenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateScanEvidence>
+        }
+        groupBy: {
+          args: Prisma.ScanEvidenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScanEvidenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ScanEvidenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScanEvidenceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1352,6 +1427,18 @@ export const FindingScalarFieldEnum = {
 export type FindingScalarFieldEnum = (typeof FindingScalarFieldEnum)[keyof typeof FindingScalarFieldEnum]
 
 
+export const ScanEvidenceScalarFieldEnum = {
+  id: 'id',
+  scanId: 'scanId',
+  type: 'type',
+  sequence: 'sequence',
+  data: 'data',
+  createdAt: 'createdAt'
+} as const
+
+export type ScanEvidenceScalarFieldEnum = (typeof ScanEvidenceScalarFieldEnum)[keyof typeof ScanEvidenceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -1366,6 +1453,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
@@ -1650,6 +1744,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
+
+/**
+ * Reference to a field of type 'ScanEvidenceType'
+ */
+export type EnumScanEvidenceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanEvidenceType'>
+    
+
+
+/**
+ * Reference to a field of type 'ScanEvidenceType[]'
+ */
+export type ListEnumScanEvidenceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanEvidenceType[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -1811,6 +1919,7 @@ export type GlobalOmitConfig = {
   scan?: Prisma.ScanOmit
   scanMetric?: Prisma.ScanMetricOmit
   finding?: Prisma.FindingOmit
+  scanEvidence?: Prisma.ScanEvidenceOmit
 }
 
 /* Types for Logging */

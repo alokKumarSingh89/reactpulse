@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-
-import { ScanEvidenceType } from '@reactpulse/database';
+import { Prisma, ScanEvidenceType } from '@reactpulse/database';
 
 import type { BrowserScanResult } from '../browser/browser.types';
-
 import { DatabaseService } from '../database/database.service';
 
 @Injectable()
@@ -15,13 +13,6 @@ export class ScanEvidenceService {
     result: BrowserScanResult,
   ): Promise<void> {
     await this.database.client.$transaction(async (transaction) => {
-      /*
-       * Evidence belongs to one execution
-       * of this scan.
-       *
-       * BullMQ retries therefore replace
-       * the previous attempt.
-       */
       await transaction.scanEvidence.deleteMany({
         where: {
           scanId,
@@ -31,24 +22,18 @@ export class ScanEvidenceService {
       await transaction.scanEvidence.create({
         data: {
           scanId,
-
           type: ScanEvidenceType.BROWSER,
-
           sequence: 0,
-
-          data: result.browser,
+          data: this.toJson(result.browser),
         },
       });
 
       await transaction.scanEvidence.create({
         data: {
           scanId,
-
           type: ScanEvidenceType.NAVIGATION,
-
           sequence: 0,
-
-          data: result.navigation,
+          data: this.toJson(result.navigation),
         },
       });
 
@@ -56,12 +41,9 @@ export class ScanEvidenceService {
         await transaction.scanEvidence.create({
           data: {
             scanId,
-
             type: ScanEvidenceType.DOCUMENT_RESPONSE,
-
             sequence: 0,
-
-            data: result.documentResponse,
+            data: this.toJson(result.documentResponse),
           },
         });
       }
@@ -75,7 +57,7 @@ export class ScanEvidenceService {
 
             sequence: index,
 
-            data: request,
+            data: this.toJson(request),
           })),
         });
       }
@@ -89,44 +71,14 @@ export class ScanEvidenceService {
 
             sequence: index,
 
-            data: message,
-          })),
-        });
-      }
-
-      /*
-       * Performance summary.
-       */
-      await transaction.scanEvidence.create({
-        data: {
-          scanId,
-
-          type: ScanEvidenceType.PERFORMANCE,
-
-          sequence: 0,
-
-          data: result.performance.metrics,
-        },
-      });
-
-      /*
-       * Individual long tasks are retained
-       * because later findings/source
-       * correlation can use them.
-       */
-      if (result.performance.longTasks.length > 0) {
-        await transaction.scanEvidence.createMany({
-          data: result.performance.longTasks.map((task, index) => ({
-            scanId,
-
-            type: ScanEvidenceType.LONG_TASK,
-
-            sequence: index,
-
-            data: task,
+            data: this.toJson(message),
           })),
         });
       }
     });
+  }
+
+  private toJson(value: unknown): Prisma.InputJsonValue {
+    return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
   }
 }

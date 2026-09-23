@@ -2,14 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { chromium, type Browser } from 'playwright';
 
-import { PerformanceCollectorService } from '../performance/performance-collector.service';
-
-import { PERFORMANCE_INIT_SCRIPT } from '../performance/performance-init-script';
-
 import { ScanExecutionError, ScanFailureCode } from '../scans/scan-failure';
-
 import { TargetValidatorService } from '../security/target-validator.service';
-
 import type {
   BrowserScanResult,
   ConsoleEvidence,
@@ -17,23 +11,18 @@ import type {
   NetworkRequestEvidence,
 } from './browser.types';
 
-import { DESKTOP_PROFILE } from './scan-profile';
-
 @Injectable()
 export class BrowserScannerService {
   constructor(
     private readonly config: ConfigService,
     private readonly targetValidator: TargetValidatorService,
-    private readonly performanceCollector: PerformanceCollectorService,
   ) {}
 
   async scan(targetUrl: string): Promise<BrowserScanResult> {
-    /*
-     * Validate the initial target before
-     * launching Chromium.
-     */
     await this.targetValidator.validate(targetUrl);
+
     let browser: Browser | undefined;
+
     try {
       browser = await chromium.launch({
         headless: true,
@@ -66,23 +55,21 @@ export class BrowserScannerService {
       'SCANNER_MAX_CONSOLE_MESSAGES',
       100,
     );
+
     const context = await browser.newContext({
-      viewport: DESKTOP_PROFILE.viewport,
+      viewport: {
+        width: 1440,
+        height: 900,
+      },
+
       ignoreHTTPSErrors: false,
+
       acceptDownloads: false,
+
       serviceWorkers: 'block',
     });
 
     try {
-      /*
-       * Critical:
-       *
-       * Performance observers must exist
-       * before application JavaScript
-       * begins execution.
-       */
-      await context.addInitScript(PERFORMANCE_INIT_SCRIPT);
-
       const page = await context.newPage();
 
       const requests: NetworkRequestEvidence[] = [];
@@ -110,7 +97,6 @@ export class BrowserScannerService {
 
         consoleMessages.push({
           type: message.type(),
-
           text: this.sanitizeConsoleText(message.text()),
         });
       });
@@ -120,29 +106,20 @@ export class BrowserScannerService {
           return;
         }
 
-        try {
-          documentResponse = {
-            url: response.url(),
-            status: response.status(),
-            statusText: response.statusText(),
-            headers: this.sanitizeHeaders(await response.allHeaders()),
-          };
-        } catch {
-          /*
-           * Evidence collection should
-           * not fail the whole scan.
-           */
-        }
+        documentResponse = {
+          url: response.url(),
+          status: response.status(),
+          statusText: response.statusText(),
+          headers: this.sanitizeHeaders(await response.allHeaders()),
+        };
       });
 
       /*
-       * Application-level network policy.
+       * Validate every browser request.
        *
-       * This validates redirects and
-       * subresource destinations.
-       *
-       * Container/network-level controls
-       * are still required for production.
+       * This catches redirect destinations
+       * and subresource requests at the
+       * application layer.
        */
       await page.route('**/*', async (route) => {
         const request = route.request();
@@ -180,42 +157,15 @@ export class BrowserScannerService {
         );
       }
 
-      const navigationDurationMs = performance.now() - startedAt;
-
-      /*
-       * Allow the load event to complete,
-       * but don't let it block the scan
-       * indefinitely.
-       */
-      await page
-        .waitForLoadState('load', {
-          timeout: 10_000,
-        })
-        .catch(() => undefined);
-
-      /*
-       * Observation period for:
-       *
-       * LCP
-       * layout shifts
-       * long tasks
-       * late resources
-       */
-      await page.waitForTimeout(DESKTOP_PROFILE.observationWindowMs);
+      const durationMs = performance.now() - startedAt;
 
       const finalUrl = page.url();
 
       /*
-       * Validate final destination again.
+       * Explicit final validation gives us
+       * another redirect-chain boundary.
        */
       await this.targetValidator.validate(finalUrl);
-
-      /*
-       * Collect performance while the page
-       * still exists.
-       */
-      const performanceObservation =
-        await this.performanceCollector.collect(page);
 
       const browserVersion = browser.version();
 
@@ -235,7 +185,7 @@ export class BrowserScannerService {
 
           status: response?.status() ?? null,
 
-          durationMs: navigationDurationMs,
+          durationMs,
         },
 
         documentResponse,
@@ -243,8 +193,6 @@ export class BrowserScannerService {
         requests,
 
         consoleMessages,
-
-        performance: performanceObservation,
       };
     } finally {
       await context.close().catch(() => undefined);

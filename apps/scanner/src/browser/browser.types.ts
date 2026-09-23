@@ -1,5 +1,3 @@
-import type { PerformanceObservation } from '../performance/performance.types';
-
 export interface BrowserEvidence {
   name: string;
   version: string;
@@ -41,6 +39,4 @@ export interface BrowserScanResult {
   requests: NetworkRequestEvidence[];
 
   consoleMessages: ConsoleEvidence[];
-
-  performance: PerformanceObservation;
 }
