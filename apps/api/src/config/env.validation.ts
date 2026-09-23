@@ -15,4 +15,9 @@ export const envValidationSchema = Joi.object({
       scheme: ['postgresql', 'postgres'],
     })
     .required(),
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+
+  JWT_ACCESS_TTL: Joi.string().default('15m'),
+
+  SESSION_TTL_DAYS: Joi.number().integer().positive().default(30),
 });

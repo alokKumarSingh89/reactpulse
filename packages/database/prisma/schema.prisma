@@ -99,6 +99,12 @@ enum FindingConfidence {
     HIGH
 }
 
+enum SessionStatus {
+    ACTIVE
+    REVOKED
+    EXPIRED
+}
+
 model User {
     id     String     @id @default(uuid())
     email  String     @unique
@@ -108,9 +114,50 @@ model User {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    credential  Credential?
+    sessions    Session[]
     memberships OrganizationMember[]
 
     @@map("users")
+}
+
+model Credential {
+    id String @id @default(uuid())
+
+    userId String @unique
+
+    passwordHash String
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("credentials")
+}
+
+model Session {
+    id String @id @default(uuid())
+
+    userId String
+
+    status SessionStatus @default(ACTIVE)
+
+    expiresAt DateTime
+    revokedAt DateTime?
+
+    ipAddress String?
+    userAgent String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([userId, status])
+    @@index([expiresAt])
+    @@map("sessions")
 }
 
 model Organization {

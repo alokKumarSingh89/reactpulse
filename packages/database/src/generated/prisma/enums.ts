@@ -135,3 +135,12 @@ export const FindingConfidence = {
 } as const
 
 export type FindingConfidence = (typeof FindingConfidence)[keyof typeof FindingConfidence]
+
+
+export const SessionStatus = {
+  ACTIVE: 'ACTIVE',
+  REVOKED: 'REVOKED',
+  EXPIRED: 'EXPIRED'
+} as const
+
+export type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus]
