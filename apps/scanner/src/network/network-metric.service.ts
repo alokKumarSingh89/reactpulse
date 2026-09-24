@@ -4,41 +4,43 @@ import type { Prisma } from '@reactpulse/database';
 
 import { DatabaseService } from '../database/database.service';
 
-import { mapPerformanceMetrics } from './performance-metric.mapper';
+import { mapNetworkMetrics } from './network-metric.mapper';
 
-import type { PerformanceMetrics } from './performance.types';
+import type { NetworkObservation } from './network.types';
 
 @Injectable()
-export class PerformanceMetricService {
+export class NetworkMetricService {
   constructor(private readonly database: DatabaseService) {}
 
   async replaceForScan(
     scanId: string,
-    metrics: PerformanceMetrics,
+    observation: NetworkObservation,
   ): Promise<void> {
-    const values = mapPerformanceMetrics(metrics);
+    const metrics = mapNetworkMetrics(observation);
 
     await this.database.client.$transaction(async (tx) => {
       /*
-       * BullMQ may retry a scan.
+       * Network metrics are retry-safe.
        *
-       * Replace the PERFORMANCE metric set rather
-       * than appending another copy.
+       * Every scan attempt replaces the previous
+       * NETWORK and RESOURCE metrics.
        */
       await tx.scanMetric.deleteMany({
         where: {
           scanId,
 
-          category: 'PERFORMANCE',
+          category: {
+            in: ['NETWORK', 'RESOURCE'],
+          },
         },
       });
 
-      if (values.length === 0) {
+      if (metrics.length === 0) {
         return;
       }
 
       await tx.scanMetric.createMany({
-        data: values.map((metric) => ({
+        data: metrics.map((metric) => ({
           scanId,
 
           category: metric.category,
