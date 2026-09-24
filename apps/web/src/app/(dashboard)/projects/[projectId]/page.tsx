@@ -19,6 +19,7 @@ import { getActiveOrganization } from "@/features/organizations/get-active-organ
 import { getProject } from "@/features/projects/project-api";
 
 import { ApiError } from "@/lib/api/api-error";
+import { ProjectActions } from "@/features/projects/project-actions";
 
 interface ProjectPageProps {
   params: Promise<{
@@ -80,6 +81,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </h1>
 
               <Badge>{project.status}</Badge>
+              <ProjectActions
+                organizationId={organizationId}
+                project={project}
+              />
             </div>
 
             <p className="mt-1 text-sm text-slate-500">{project.slug}</p>
@@ -130,7 +135,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
             {environments.map((environment) => (
-              <EnvironmentCard key={environment.id} environment={environment} />
+              <EnvironmentCard
+                key={environment.id}
+                organizationId={organizationId}
+                projectId={project.id}
+                environment={environment}
+              />
             ))}
           </div>
         )}

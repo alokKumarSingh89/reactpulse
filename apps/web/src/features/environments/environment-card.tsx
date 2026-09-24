@@ -4,17 +4,26 @@ import { Badge } from "@/components/ui/badge";
 
 import { Card } from "@/components/ui/card";
 
+import { EnvironmentActions } from "./environment-actions";
+
 import type { Environment } from "./environment.types";
 
 interface EnvironmentCardProps {
+  organizationId: string;
+  projectId: string;
+
   environment: Environment;
 }
 
-export function EnvironmentCard({ environment }: EnvironmentCardProps) {
+export function EnvironmentCard({
+  organizationId,
+  projectId,
+  environment,
+}: EnvironmentCardProps) {
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
             <Globe2 size={18} />
           </div>
@@ -26,7 +35,7 @@ export function EnvironmentCard({ environment }: EnvironmentCardProps) {
               href={environment.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 flex max-w-md items-center gap-1 truncate text-sm text-slate-500 hover:text-slate-950"
+              className="mt-1 flex max-w-md items-center gap-1 text-sm text-slate-500 hover:text-slate-950"
             >
               <span className="truncate">{environment.url}</span>
 
@@ -38,10 +47,16 @@ export function EnvironmentCard({ environment }: EnvironmentCardProps) {
         <Badge>{formatEnvironmentType(environment.type)}</Badge>
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-4">
+      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
         <p className="text-xs text-slate-400">
-          Scanning controls will appear here in Sprint 10.
+          Scan controls arrive in Sprint 10.
         </p>
+
+        <EnvironmentActions
+          organizationId={organizationId}
+          projectId={projectId}
+          environment={environment}
+        />
       </div>
     </Card>
   );
