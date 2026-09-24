@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { EnvironmentActions } from "./environment-actions";
 
 import type { Environment } from "./environment.types";
+import { RunScanButton } from "../scans/run-scan-button";
 
 interface EnvironmentCardProps {
   organizationId: string;
@@ -48,9 +49,11 @@ export function EnvironmentCard({
       </div>
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-        <p className="text-xs text-slate-400">
-          Scan controls arrive in Sprint 10.
-        </p>
+        <RunScanButton
+          organizationId={organizationId}
+          projectId={projectId}
+          environmentId={environment.id}
+        />
 
         <EnvironmentActions
           organizationId={organizationId}
