@@ -1,29 +1,104 @@
-import { ScanSearch } from "lucide-react";
+import { Activity, ScanSearch } from "lucide-react";
 
-export default function ScansPage() {
+import { notFound, redirect } from "next/navigation";
+
+import { getCurrentUser } from "@/features/auth/get-current-user";
+
+import { getActiveOrganization } from "@/features/organizations/get-active-organization";
+
+import {
+  getOrganizationScan,
+  getOrganizationScans,
+} from "@/features/scans/scan-api";
+
+import { ScanList } from "@/features/scans/scan-list";
+
+import { ScanReportClient } from "@/features/scans/scan-report-client";
+
+import { ApiError } from "@/lib/api/api-error";
+
+interface ScansPageProps {
+  searchParams: Promise<{
+    scanId?: string;
+  }>;
+}
+
+export default async function ScansPage({ searchParams }: ScansPageProps) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const membership = getActiveOrganization(user);
+
+  if (!membership) {
+    notFound();
+  }
+
+  const organizationId = membership.organization.id;
+
+  const { scanId } = await searchParams;
+
+  const scans = await getOrganizationScans(organizationId);
+
+  if (!scanId) {
+    return (
+      <div className="space-y-6">
+        <PageHeader />
+
+        <ScanList scans={scans} />
+      </div>
+    );
+  }
+
+  let selectedScan;
+
+  try {
+    selectedScan = await getOrganizationScan(organizationId, scanId);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      notFound();
+    }
+
+    throw error;
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-          Scans
-        </h1>
+      <PageHeader />
 
-        <p className="mt-1 text-sm text-slate-500">
-          Inspect synthetic application scans and their execution status.
-        </p>
-      </div>
-
-      <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-          <ScanSearch size={22} />
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div>
+          <ScanList scans={scans} selectedScanId={selectedScan.id} />
         </div>
 
-        <h2 className="mt-4 font-semibold text-slate-950">No scans yet</h2>
+        <ScanReportClient
+          organizationId={organizationId}
+          initialScan={selectedScan}
+        />
+      </div>
+    </div>
+  );
+}
 
-        <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-          Once you create a project and environment, you&apos;ll be able to
-          launch browser scans from here.
-        </p>
+function PageHeader() {
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+          <Activity size={19} />
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Scans
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Browser analysis across your React applications.
+          </p>
+        </div>
       </div>
     </div>
   );

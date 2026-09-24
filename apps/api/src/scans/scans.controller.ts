@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { OrganizationRole } from '@reactpulse/database';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,20 +22,16 @@ export class ScansController {
   constructor(private readonly scansService: ScansService) {}
 
   @Post()
+  @HttpCode(HttpStatus.ACCEPTED)
   @OrganizationRoles(
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
     OrganizationRole.DEVELOPER,
   )
   create(
-    @Param('organizationId')
-    organizationId: string,
-
-    @Param('projectId')
-    projectId: string,
-
-    @Param('environmentId')
-    environmentId: string,
+    @Param('organizationId') organizationId: string,
+    @Param('projectId') projectId: string,
+    @Param('environmentId') environmentId: string,
   ) {
     return this.scansService.create(organizationId, projectId, environmentId);
   }

@@ -98,7 +98,6 @@ export class ScansService {
     const scan = await this.database.client.scan.findFirst({
       where: {
         id: scanId,
-
         environmentId,
 
         environment: {
@@ -112,6 +111,7 @@ export class ScansService {
 
       select: {
         id: true,
+        environmentId: true,
 
         status: true,
         trigger: true,
@@ -133,6 +133,7 @@ export class ScansService {
 
         metrics: {
           select: {
+            id: true,
             category: true,
             key: true,
             value: true,
@@ -174,13 +175,25 @@ export class ScansService {
 
       select: {
         id: true,
+        environmentId: true,
+
         status: true,
         trigger: true,
+
         targetUrl: true,
         deviceType: true,
+
+        browserName: true,
+        browserVersion: true,
+
         startedAt: true,
         completedAt: true,
+
+        failureCode: true,
+        failureMessage: true,
+
         createdAt: true,
+        updatedAt: true,
       },
 
       orderBy: {
@@ -189,5 +202,132 @@ export class ScansService {
 
       take: 50,
     });
+  }
+  async findAllForOrganization(organizationId: string) {
+    return this.database.client.scan.findMany({
+      where: {
+        environment: {
+          project: {
+            organizationId,
+          },
+        },
+      },
+
+      select: {
+        id: true,
+
+        status: true,
+        trigger: true,
+
+        targetUrl: true,
+        deviceType: true,
+
+        browserName: true,
+        browserVersion: true,
+
+        startedAt: true,
+        completedAt: true,
+
+        failureCode: true,
+        failureMessage: true,
+
+        createdAt: true,
+        updatedAt: true,
+
+        environment: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+
+            project: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        createdAt: 'desc',
+      },
+
+      take: 50,
+    });
+  }
+  async findOneForOrganization(organizationId: string, scanId: string) {
+    const scan = await this.database.client.scan.findFirst({
+      where: {
+        id: scanId,
+
+        environment: {
+          project: {
+            organizationId,
+          },
+        },
+      },
+
+      select: {
+        id: true,
+
+        status: true,
+        trigger: true,
+
+        targetUrl: true,
+        deviceType: true,
+
+        browserName: true,
+        browserVersion: true,
+
+        startedAt: true,
+        completedAt: true,
+
+        failureCode: true,
+        failureMessage: true,
+
+        createdAt: true,
+        updatedAt: true,
+
+        environment: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+
+            project: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+
+        metrics: {
+          select: {
+            id: true,
+            category: true,
+            key: true,
+            value: true,
+            unit: true,
+            metadata: true,
+          },
+
+          orderBy: {
+            key: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!scan) {
+      throw new NotFoundException('Scan not found');
+    }
+
+    return scan;
   }
 }
