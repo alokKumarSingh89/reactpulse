@@ -8,7 +8,6 @@ import type { ScanSummary } from "./scan.types";
 
 interface ScanListProps {
   scans: ScanSummary[];
-
   selectedScanId?: string;
 }
 
@@ -58,9 +57,11 @@ export function ScanList({ scans, selectedScanId }: ScanListProps) {
               {scan.targetUrl}
             </p>
 
-            <p className="mt-2 text-xs text-slate-400">
-              {formatDate(scan.createdAt)}
-            </p>
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
+              <span>{formatDate(scan.createdAt)}</span>
+
+              <span>{formatDuration(scan.startedAt, scan.completedAt)}</span>
+            </div>
           </Link>
         );
       })}
@@ -68,7 +69,7 @@ export function ScanList({ scans, selectedScanId }: ScanListProps) {
   );
 }
 
-function formatDate(value: string) {
+function formatDate(value: string): string {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -77,7 +78,31 @@ function formatDate(value: string) {
 
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
-
     timeStyle: "short",
   }).format(date);
+}
+
+function formatDuration(
+  startedAt: string | null,
+  completedAt: string | null,
+): string {
+  if (!startedAt || !completedAt) {
+    return "—";
+  }
+
+  const start = new Date(startedAt).getTime();
+
+  const end = new Date(completedAt).getTime();
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return "—";
+  }
+
+  const durationMs = end - start;
+
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(1)} s`;
 }
