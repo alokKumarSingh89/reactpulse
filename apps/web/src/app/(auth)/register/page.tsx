@@ -3,11 +3,7 @@ import { Activity, CheckCircle2 } from "lucide-react";
 
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-
 import { Card } from "@/components/ui/card";
-
-import { Input } from "@/components/ui/input";
 import { RegisterForm } from "@/features/auth/register-form";
 
 export default function RegisterPage() {

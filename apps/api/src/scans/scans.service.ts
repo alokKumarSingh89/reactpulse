@@ -14,7 +14,74 @@ export class ScansService {
     private readonly database: DatabaseService,
     private readonly scanQueue: ScanQueueService,
   ) {}
+  async findNetworkForOrganization(organizationId: string, scanId: string) {
+    const scan = await this.database.client.scan.findFirst({
+      where: {
+        id: scanId,
+        environment: {
+          project: {
+            organizationId,
+          },
+        },
+      },
 
+      select: {
+        id: true,
+        status: true,
+        metrics: {
+          where: {
+            category: {
+              in: ['NETWORK', 'RESOURCE'],
+            },
+          },
+
+          select: {
+            id: true,
+            category: true,
+            key: true,
+            value: true,
+            unit: true,
+            metadata: true,
+          },
+
+          orderBy: {
+            key: 'asc',
+          },
+        },
+
+        evidence: {
+          where: {
+            type: {
+              in: ['NETWORK_REQUEST', 'NETWORK_RESPONSE', 'NETWORK_FAILURE'],
+            },
+          },
+
+          select: {
+            id: true,
+            type: true,
+            sequence: true,
+            data: true,
+          },
+
+          orderBy: [
+            {
+              type: 'asc',
+            },
+
+            {
+              sequence: 'asc',
+            },
+          ],
+        },
+      },
+    });
+
+    if (!scan) {
+      throw new NotFoundException('Scan not found');
+    }
+
+    return scan;
+  }
   async create(
     organizationId: string,
     projectId: string,

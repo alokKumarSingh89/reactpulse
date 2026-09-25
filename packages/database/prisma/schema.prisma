@@ -15,7 +15,11 @@ enum UserStatus {
 enum ScanEvidenceType {
     NAVIGATION
     DOCUMENT_RESPONSE
+
     NETWORK_REQUEST
+    NETWORK_RESPONSE
+    NETWORK_FAILURE
+
     BROWSER
     CONSOLE
 

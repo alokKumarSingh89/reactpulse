@@ -29,4 +29,15 @@ export class OrganizationScansController {
   ) {
     return this.scansService.findOneForOrganization(organizationId, scanId);
   }
+
+  @Get(':scanId/network')
+  findNetwork(
+    @Param('organizationId')
+    organizationId: string,
+
+    @Param('scanId')
+    scanId: string,
+  ) {
+    return this.scansService.findNetworkForOrganization(organizationId, scanId);
+  }
 }

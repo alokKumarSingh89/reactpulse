@@ -1,6 +1,8 @@
-export type NetworkParty = 'FIRST_PARTY' | 'THIRD_PARTY';
+import type { ScanMetric, ScanStatus } from "@/features/scans/scan.types";
 
-export interface NetworkRequestObservation {
+export type NetworkParty = "FIRST_PARTY" | "THIRD_PARTY";
+
+export interface NetworkRequestEvidence {
   sequence: number;
 
   url: string;
@@ -16,7 +18,7 @@ export interface NetworkRequestObservation {
   startedAtMs: number;
 }
 
-export interface NetworkResponseObservation {
+export interface NetworkResponseEvidence {
   sequence: number;
 
   requestSequence: number;
@@ -48,7 +50,7 @@ export interface NetworkResponseObservation {
   contentType: string | null;
 }
 
-export interface NetworkFailureObservation {
+export interface NetworkFailureEvidence {
   sequence: number;
 
   requestSequence: number;
@@ -66,10 +68,25 @@ export interface NetworkFailureObservation {
   failureText: string | null;
 }
 
-export interface NetworkObservation {
-  requests: NetworkRequestObservation[];
+export type NetworkEvidenceType =
+  "NETWORK_REQUEST" | "NETWORK_RESPONSE" | "NETWORK_FAILURE";
 
-  responses: NetworkResponseObservation[];
+export interface RawNetworkEvidence {
+  id: string;
 
-  failures: NetworkFailureObservation[];
+  type: NetworkEvidenceType;
+
+  sequence: number;
+
+  data: unknown;
+}
+
+export interface NetworkAnalysisResponse {
+  id: string;
+
+  status: ScanStatus;
+
+  metrics: ScanMetric[];
+
+  evidence: RawNetworkEvidence[];
 }

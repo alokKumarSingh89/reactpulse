@@ -5,33 +5,30 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 
-import {
-  SCAN_JOB,
-  SCAN_QUEUE,
-  type ExecuteScanJob,
-} from '@reactpulse/contracts';
+import { SCAN_JOB, SCAN_QUEUE } from '@reactpulse/contracts';
 
-import { ScanStatus } from '@reactpulse/database';
+import type { ExecuteScanJob } from '@reactpulse/contracts';
 
-import { type Job, Worker } from 'bullmq';
+import { Job, Worker } from 'bullmq';
 
 import { BrowserScannerService } from '../browser/browser-scanner.service';
 
 import { DatabaseService } from '../database/database.service';
 
+import { ScanEvidenceService } from '../evidence/scan-evidence.service';
+
+import { NetworkMetricService } from '../network/network-metric.service';
+
 import { PerformanceMetricService } from '../performance/performance-metric.service';
 
 import { RedisService } from '../queue/redis.service';
-
-import { ScanEvidenceService } from './scan-evidence.service';
-
-import { ScanExecutionError, ScanFailureCode } from './scan-failure';
+import { ScanExecutionError } from './scan-failure';
 
 @Injectable()
 export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ScanProcessor.name);
 
-  private worker?: Worker<ExecuteScanJob>;
+  private worker: Worker<ExecuteScanJob> | null = null;
 
   constructor(
     private readonly database: DatabaseService,
@@ -40,194 +37,224 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
 
     private readonly browserScanner: BrowserScannerService,
 
-    private readonly evidence: ScanEvidenceService,
+    private readonly scanEvidenceService: ScanEvidenceService,
 
-    private readonly performanceMetrics: PerformanceMetricService,
+    private readonly performanceMetricService: PerformanceMetricService,
+
+    private readonly networkMetricService: NetworkMetricService,
   ) {}
 
   onModuleInit(): void {
     this.worker = new Worker<ExecuteScanJob>(
       SCAN_QUEUE,
 
-      async (job) => {
-        if (job.name !== SCAN_JOB) {
-          throw new Error(`Unsupported job: ${job.name}`);
-        }
-
-        await this.process(job);
-      },
+      async (job) => this.processJob(job),
 
       {
         connection: this.redis.client,
 
         /*
-         * Keep browser concurrency low
-         * until we have worker resource
-         * measurements.
+         * Browser scans are expensive.
+         *
+         * Keep one Chromium scan per worker process
+         * until we add explicit CPU/memory isolation.
          */
         concurrency: 1,
       },
     );
 
     this.worker.on('completed', (job) => {
-      this.logger.log(`Scan job completed: ${job.id}`);
+      this.logger.log(`Scan job completed: ${job.id ?? 'unknown'}`);
     });
 
     this.worker.on('failed', (job, error) => {
-      this.logger.error(`Scan job failed: ${job?.id}`, error.stack);
+      this.logger.error(
+        `Scan job failed: ${job?.id ?? 'unknown'} - ${error.message}`,
+      );
     });
+
+    this.logger.log(`Listening to scan queue "${SCAN_QUEUE}"`);
   }
 
-  private async process(job: Job<ExecuteScanJob>): Promise<void> {
+  async onModuleDestroy(): Promise<void> {
+    if (this.worker) {
+      await this.worker.close();
+
+      this.worker = null;
+    }
+  }
+
+  private async processJob(job: Job<ExecuteScanJob>): Promise<void> {
+    if (job.name !== SCAN_JOB) {
+      this.logger.warn(`Ignoring unsupported job "${job.name}"`);
+
+      return;
+    }
+
     const { scanId } = job.data;
 
     const scan = await this.database.client.scan.findUnique({
       where: {
         id: scanId,
       },
+
+      select: {
+        id: true,
+
+        status: true,
+
+        targetUrl: true,
+
+        startedAt: true,
+      },
     });
 
     if (!scan) {
-      throw new Error(`Scan ${scanId} does not exist`);
+      throw new Error(`Scan ${scanId} was not found`);
     }
 
-    /*
-     * Terminal states must be idempotent.
-     */
-    if (
-      scan.status === ScanStatus.COMPLETED ||
-      scan.status === ScanStatus.CANCELLED
-    ) {
-      this.logger.warn(`Skipping terminal scan ${scanId}`);
+    if (scan.status === 'COMPLETED' || scan.status === 'CANCELLED') {
+      this.logger.log(
+        `Skipping terminal scan ${scan.id} with status ${scan.status}`,
+      );
 
       return;
     }
 
     await this.database.client.scan.update({
       where: {
-        id: scanId,
+        id: scan.id,
       },
 
       data: {
-        status: ScanStatus.RUNNING,
+        status: 'RUNNING',
 
         startedAt: scan.startedAt ?? new Date(),
 
         completedAt: null,
 
         failureCode: null,
+
         failureMessage: null,
       },
     });
 
     try {
-      /*
-       * 1. Execute real browser scan.
-       */
       const result = await this.browserScanner.scan(scan.targetUrl);
 
       /*
-       * 2. Persist raw observations.
+       * Persist raw evidence first.
+       *
+       * This includes:
+       *
+       * BROWSER
+       * NAVIGATION
+       * DOCUMENT_RESPONSE
+       * NETWORK_REQUEST
+       * NETWORK_RESPONSE
+       * NETWORK_FAILURE
+       * CONSOLE
+       * PERFORMANCE
+       * LONG_TASK
        */
-      await this.evidence.replaceBrowserEvidence(scanId, result);
+      await this.scanEvidenceService.replaceForScan(scan.id, result);
 
-      /*
-       * 3. Persist normalized metrics.
-       */
-      await this.performanceMetrics.replace(scanId, result.performance.metrics);
+      await this.performanceMetricService.replaceForScan(
+        scan.id,
+        result.performance.metrics,
+      );
 
-      /*
-       * 4. Only now is the scan considered
-       * completed.
-       */
+      await this.networkMetricService.replaceForScan(scan.id, result.network);
+
       await this.database.client.scan.update({
         where: {
-          id: scanId,
+          id: scan.id,
         },
 
         data: {
-          status: ScanStatus.COMPLETED,
-
-          completedAt: new Date(),
+          status: 'COMPLETED',
 
           browserName: result.browser.name,
 
           browserVersion: result.browser.version,
 
+          completedAt: new Date(),
+
           failureCode: null,
+
           failureMessage: null,
         },
       });
     } catch (error) {
-      const failure = this.normalizeFailure(error);
+      const failure = normalizeFailure(error);
 
-      const configuredAttempts = job.opts.attempts ?? 1;
+      const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
 
-      const currentAttempt = job.attemptsMade + 1;
+      await this.database.client.scan.update({
+        where: {
+          id: scan.id,
+        },
 
-      const finalAttempt = currentAttempt >= configuredAttempts;
+        data: finalAttempt
+          ? {
+              status: 'FAILED',
 
-      if (finalAttempt) {
-        await this.database.client.scan.update({
-          where: {
-            id: scanId,
-          },
+              completedAt: new Date(),
 
-          data: {
-            status: ScanStatus.FAILED,
+              failureCode: failure.code,
 
-            completedAt: new Date(),
+              failureMessage: failure.message,
+            }
+          : {
+              /*
+               * BullMQ will retry this job.
+               *
+               * Return the scan to QUEUED so the UI
+               * accurately represents the retry state.
+               */
+              status: 'QUEUED',
 
-            failureCode: failure.code,
+              completedAt: null,
 
-            failureMessage: failure.message,
-          },
-        });
-      } else {
-        /*
-         * BullMQ will retry the job.
-         */
-        await this.database.client.scan.update({
-          where: {
-            id: scanId,
-          },
+              failureCode: failure.code,
 
-          data: {
-            status: ScanStatus.QUEUED,
-
-            completedAt: null,
-
-            failureCode: failure.code,
-
-            failureMessage: failure.message,
-          },
-        });
-      }
+              failureMessage: failure.message,
+            },
+      });
 
       throw error;
     }
   }
+}
 
-  private normalizeFailure(error: unknown): {
-    code: ScanFailureCode;
-    message: string;
-  } {
-    if (error instanceof ScanExecutionError) {
-      return {
-        code: error.code,
+interface NormalizedFailure {
+  code: string;
 
-        message: error.message,
-      };
-    }
+  message: string;
+}
 
+function normalizeFailure(error: unknown): NormalizedFailure {
+  if (error instanceof ScanExecutionError) {
     return {
-      code: ScanFailureCode.SCAN_EXECUTION_FAILED,
+      code: error.code,
 
-      message: 'Scan execution failed',
+      message: sanitizeFailureMessage(error.message),
     };
   }
 
-  async onModuleDestroy(): Promise<void> {
-    await this.worker?.close();
-  }
+  return {
+    code: 'SCAN_EXECUTION_FAILED',
+
+    message: 'ReactPulse could not complete the browser scan.',
+  };
+}
+
+function sanitizeFailureMessage(message: string): string {
+  /*
+   * Scanner-specific errors should already contain
+   * customer-safe messages.
+   *
+   * Bound their size before persisting them.
+   */
+  return message.replace(/\s+/g, ' ').trim().slice(0, 500);
 }

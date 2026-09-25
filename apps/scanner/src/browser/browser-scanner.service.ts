@@ -8,9 +8,9 @@ import type {
   BrowserScanResult,
   ConsoleEvidence,
   DocumentResponseEvidence,
-  NetworkRequestEvidence,
 } from './browser.types';
 import { PerformanceCollectorService } from '../performance/performance-collector.service';
+import { NetworkCollectorService } from '../network/network-collector.service';
 
 @Injectable()
 export class BrowserScannerService {
@@ -18,6 +18,7 @@ export class BrowserScannerService {
     private readonly config: ConfigService,
     private readonly targetValidator: TargetValidatorService,
     private readonly performanceCollector: PerformanceCollectorService,
+    private readonly networkCollector: NetworkCollectorService,
   ) {}
 
   async scan(targetUrl: string): Promise<BrowserScanResult> {
@@ -74,23 +75,9 @@ export class BrowserScannerService {
     try {
       const page = await context.newPage();
 
-      const requests: NetworkRequestEvidence[] = [];
-
       const consoleMessages: ConsoleEvidence[] = [];
 
       let documentResponse: DocumentResponseEvidence | null = null;
-
-      page.on('request', (request) => {
-        if (requests.length >= maxRequests) {
-          return;
-        }
-
-        requests.push({
-          url: request.url(),
-          method: request.method(),
-          resourceType: request.resourceType(),
-        });
-      });
 
       page.on('console', (message) => {
         if (consoleMessages.length >= maxConsoleMessages) {
@@ -138,7 +125,7 @@ export class BrowserScannerService {
       const startedAt = performance.now();
 
       let response;
-
+      const networkCollection = this.networkCollector.attach(page, targetUrl);
       try {
         response = await page.goto(targetUrl, {
           waitUntil: 'domcontentloaded',
@@ -170,7 +157,7 @@ export class BrowserScannerService {
       await this.targetValidator.validate(finalUrl);
       const performanceObservation =
         await this.performanceCollector.collect(page);
-
+      const network = await networkCollection.getObservation();
       const browserVersion = browser.version();
 
       const userAgent = await page.evaluate(() => navigator.userAgent);
@@ -195,11 +182,10 @@ export class BrowserScannerService {
 
         documentResponse,
 
-        requests,
-
         consoleMessages,
 
         performance: performanceObservation,
+        network,
       };
     } finally {
       await context.close().catch(() => undefined);
