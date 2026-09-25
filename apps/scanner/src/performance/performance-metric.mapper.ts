@@ -24,13 +24,19 @@ export function mapPerformanceMetrics(
   addMetric(result, 'lcp', metrics.lcpMs, 'ms');
 
   /*
-   * This is currently our synthetic accumulated
-   * layout-shift measurement.
+   * Synthetic CLS calculated from the individual
+   * layout-shift observations using the standard
+   * session-window rules:
    *
-   * We will implement the proper CLS session-window
-   * algorithm separately.
+   * - maximum 1 second between consecutive shifts
+   * - maximum 5 second session duration
+   * - shifts caused by recent user input are excluded
+   *
+   * This remains explicitly "synthetic" because the
+   * value comes from a controlled ReactPulse browser
+   * scan rather than real-user monitoring.
    */
-  addMetric(result, 'synthetic_layout_shift', metrics.cls, 'score');
+  addMetric(result, 'synthetic_cls', metrics.cls, 'score');
 
   addMetric(
     result,
@@ -71,8 +77,7 @@ export function mapPerformanceMetrics(
   addMetric(result, 'dom_nodes', metrics.domNodes, 'count');
 
   /*
-   * Resource metrics intentionally DO NOT belong here
-   * anymore.
+   * Resource metrics intentionally DO NOT belong here.
    *
    * Sprint 11 NetworkMetricService owns:
    *
@@ -94,6 +99,16 @@ function addMetric(
 
   unit: string,
 ): void {
+  /*
+   * Zero is a valid measurement.
+   *
+   * Examples:
+   * - synthetic CLS = 0
+   * - long task count = 0
+   * - observed blocking time = 0
+   *
+   * Therefore we only reject missing or non-finite values.
+   */
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return;
   }
@@ -112,6 +127,14 @@ function addMetric(
 function normalizePositiveTiming(
   value: number | null | undefined,
 ): number | null {
+  /*
+   * Navigation timing values of zero generally mean
+   * that the corresponding lifecycle event was not
+   * available when the measurement was collected.
+   *
+   * Persist those as missing rather than pretending
+   * that the event completed in 0ms.
+   */
   if (
     value === null ||
     value === undefined ||

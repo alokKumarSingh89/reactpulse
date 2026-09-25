@@ -6,7 +6,6 @@ import { MetricCard } from "./metric-card";
 
 import {
   findMetric,
-  formatBytes,
   formatMilliseconds,
   formatNumber,
 } from "./performance-metrics";
@@ -22,7 +21,7 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
 
   const lcp = findMetric(metrics, "lcp");
 
-  const layoutShift = findMetric(metrics, "synthetic_layout_shift");
+  const syntheticCls = findMetric(metrics, "synthetic_cls");
 
   const navigation = findMetric(metrics, "navigation_duration");
 
@@ -33,10 +32,6 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
   const longTaskDuration = findMetric(metrics, "long_task_duration");
 
   const domNodes = findMetric(metrics, "dom_nodes");
-
-  const resourceCount = findMetric(metrics, "resource_count");
-
-  const transferSize = findMetric(metrics, "transfer_size");
 
   if (metrics.length === 0) {
     return (
@@ -69,7 +64,7 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="TTFB"
             value={formatMilliseconds(ttfb.value)}
-            description="Browser-observed navigation response start."
+            description="Document response latency measured from request start to response start."
           />
         )}
 
@@ -85,15 +80,15 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="LCP"
             value={formatMilliseconds(lcp.value)}
-            description="Largest Contentful Paint observed during the scan window."
+            description="Largest Contentful Paint observed during the synthetic scan window."
           />
         )}
 
-        {layoutShift && (
+        {syntheticCls && (
           <MetricCard
-            label="Layout shift"
-            value={layoutShift.value.toFixed(3)}
-            description="Synthetic layout-shift observation. Not production-user CLS."
+            label="Synthetic CLS"
+            value={syntheticCls.value.toFixed(3)}
+            description="Largest layout-shift session window observed during this synthetic scan."
           />
         )}
 
@@ -101,6 +96,7 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="Navigation"
             value={formatMilliseconds(navigation.value)}
+            description="Total observed navigation duration for the scanned document."
           />
         )}
 
@@ -108,7 +104,7 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="Observed blocking"
             value={formatMilliseconds(blocking.value)}
-            description="Long-task blocking observed by ReactPulse; not Lighthouse TBT."
+            description="Blocking derived from observed long tasks. This is not Lighthouse Total Blocking Time."
           />
         )}
 
@@ -116,6 +112,7 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="Long tasks"
             value={formatNumber(longTaskCount.value)}
+            description="Number of main-thread tasks observed above the long-task threshold."
           />
         )}
 
@@ -123,24 +120,15 @@ export function PerformanceReport({ metrics }: PerformanceReportProps) {
           <MetricCard
             label="Long-task duration"
             value={formatMilliseconds(longTaskDuration.value)}
+            description="Combined duration of the long tasks observed during the scan."
           />
         )}
 
         {domNodes && (
-          <MetricCard label="DOM nodes" value={formatNumber(domNodes.value)} />
-        )}
-
-        {resourceCount && (
           <MetricCard
-            label="Resources"
-            value={formatNumber(resourceCount.value)}
-          />
-        )}
-
-        {transferSize && (
-          <MetricCard
-            label="Transferred"
-            value={formatBytes(transferSize.value)}
+            label="DOM nodes"
+            value={formatNumber(domNodes.value)}
+            description="Number of DOM elements present when ReactPulse collected the performance snapshot."
           />
         )}
       </div>

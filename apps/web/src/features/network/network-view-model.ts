@@ -1,61 +1,74 @@
 import type { ScanMetric } from "@/features/scans/scan.types";
 
 import type { NormalizedNetworkEvidence } from "./network-normalizer";
-
 import type { NetworkResponseEvidence } from "./network.types";
 
 export interface ResourceBreakdownItem {
   type: string;
-
   requests: number;
-
   transferSize: number | null;
 }
 
 export interface ThirdPartyDomainItem {
   domain: string;
-
   requests: number;
-
   transferSize: number | null;
+}
+
+export interface CacheObservation {
+  url: string;
+  domain: string | null;
+  resourceType: string;
+  cacheControl: string | null;
+  fromServiceWorker: boolean;
 }
 
 export interface NetworkViewModel {
   requestCount: number | null;
-
   failedRequestCount: number | null;
-
   apiRequestCount: number | null;
 
   totalTransferSize: number | null;
 
   thirdPartyPercentage: number | null;
-
   thirdPartyTransferSize: number | null;
 
   javascriptTransferSize: number | null;
-
   stylesheetTransferSize: number | null;
-
   imageTransferSize: number | null;
-
   fontTransferSize: number | null;
 
   largestResources: NetworkResponseEvidence[];
-
   slowestRequests: NetworkResponseEvidence[];
 
   failedRequests: NormalizedNetworkEvidence["failures"];
 
   resourceBreakdown: ResourceBreakdownItem[];
-
   thirdPartyDomains: ThirdPartyDomainItem[];
+
+  cacheObservations: CacheObservation[];
+
+  serviceWorkerResponseCount: number;
+  cacheControlResponseCount: number;
+  missingCacheControlResponseCount: number;
 }
 
 export function createNetworkViewModel(
   metrics: ScanMetric[],
   evidence: NormalizedNetworkEvidence,
 ): NetworkViewModel {
+  const serviceWorkerResponses = evidence.responses.filter(
+    (response) => response.fromServiceWorker,
+  );
+
+  const cacheControlResponses = evidence.responses.filter((response) =>
+    hasText(response.cacheControl),
+  );
+
+  const missingCacheControlResponses = evidence.responses.filter(
+    (response) => !hasText(response.cacheControl),
+  );
+
   return {
     requestCount: metricValue(metrics, "NETWORK", "request_count"),
 
@@ -110,6 +123,26 @@ export function createNetworkViewModel(
     resourceBreakdown: createResourceBreakdown(evidence.responses),
 
     thirdPartyDomains: createThirdPartyDomains(evidence.responses),
+
+    cacheObservations: evidence.responses
+      .filter(
+        (response) =>
+          hasText(response.cacheControl) || response.fromServiceWorker,
+      )
+      .map((response) => ({
+        url: response.url,
+        domain: response.domain,
+        resourceType: response.resourceType,
+        cacheControl: response.cacheControl,
+        fromServiceWorker: response.fromServiceWorker,
+      }))
+      .slice(0, 20),
+
+    serviceWorkerResponseCount: serviceWorkerResponses.length,
+
+    cacheControlResponseCount: cacheControlResponses.length,
+
+    missingCacheControlResponseCount: missingCacheControlResponses.length,
   };
 }
 
@@ -136,9 +169,7 @@ function createResourceBreakdown(
     string,
     {
       requests: number;
-
       transferSize: number;
-
       hasTransferSize: boolean;
     }
   >();
@@ -148,9 +179,7 @@ function createResourceBreakdown(
 
     const current = groups.get(type) ?? {
       requests: 0,
-
       transferSize: 0,
-
       hasTransferSize: false,
     };
 
@@ -168,9 +197,7 @@ function createResourceBreakdown(
   return Array.from(groups.entries())
     .map(([type, group]) => ({
       type,
-
       requests: group.requests,
-
       transferSize: group.hasTransferSize ? group.transferSize : null,
     }))
     .sort(
@@ -185,9 +212,7 @@ function createThirdPartyDomains(
     string,
     {
       requests: number;
-
       transferSize: number;
-
       hasTransferSize: boolean;
     }
   >();
@@ -199,9 +224,7 @@ function createThirdPartyDomains(
 
     const current = groups.get(response.domain) ?? {
       requests: 0,
-
       transferSize: 0,
-
       hasTransferSize: false,
     };
 
@@ -219,13 +242,15 @@ function createThirdPartyDomains(
   return Array.from(groups.entries())
     .map(([domain, group]) => ({
       domain,
-
       requests: group.requests,
-
       transferSize: group.hasTransferSize ? group.transferSize : null,
     }))
     .sort(
       (left, right) => (right.transferSize ?? -1) - (left.transferSize ?? -1),
     )
     .slice(0, 10);
+}
+
+function hasText(value: string | null): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

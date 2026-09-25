@@ -1,3 +1,5 @@
+import { CacheObservations } from "./cache-observations";
+
 import { FailedRequests } from "./failed-requests";
 
 import { LargestResources } from "./largest-resources";
@@ -34,6 +36,8 @@ export function NetworkReport({ model }: NetworkReportProps) {
       <LargestResources responses={model.largestResources} />
 
       <SlowestRequests responses={model.slowestRequests} />
+
+      <CacheObservations model={model} />
 
       <FailedRequests failures={model.failedRequests} />
     </div>

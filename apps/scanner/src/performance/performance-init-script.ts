@@ -2,10 +2,18 @@ export const PERFORMANCE_INIT_SCRIPT = `
 (() => {
   window.__REACTPULSE_PERFORMANCE__ = {
     lcp: null,
-    cls: 0,
+    layoutShifts: [],
     longTasks: []
   };
 
+  /*
+   * Largest Contentful Paint
+   *
+   * Keep the latest observed LCP candidate.
+   * PerformanceObserver with buffered=true also allows
+   * us to receive entries that occurred before the
+   * observer became active.
+   */
   try {
     const lcpObserver = new PerformanceObserver(
       (list) => {
@@ -27,37 +35,53 @@ export const PERFORMANCE_INIT_SCRIPT = `
     });
   } catch {}
 
+  /*
+   * Layout Shift
+   *
+   * Preserve every observed layout-shift entry.
+   *
+   * We intentionally DO NOT filter hadRecentInput here.
+   * The tested CLS session-window implementation in the
+   * scanner owns that decision.
+   *
+   * This keeps raw browser evidence separate from the
+   * derived synthetic CLS metric.
+   */
   try {
-    const clsObserver = new PerformanceObserver(
-      (list) => {
-        for (const entry of list.getEntries()) {
-          if (!entry.hadRecentInput) {
-            window.__REACTPULSE_PERFORMANCE__.cls +=
-              entry.value;
+    const layoutShiftObserver =
+      new PerformanceObserver(
+        (list) => {
+          for (const entry of list.getEntries()) {
+            window.__REACTPULSE_PERFORMANCE__.layoutShifts.push({
+              value: entry.value,
+              startTime: entry.startTime,
+              hadRecentInput: entry.hadRecentInput
+            });
           }
         }
-      }
-    );
+      );
 
-    clsObserver.observe({
+    layoutShiftObserver.observe({
       type: 'layout-shift',
       buffered: true
     });
   } catch {}
 
+  /*
+   * Long Tasks
+   *
+   * Preserve start time and duration so ReactPulse can
+   * calculate long-task totals and observed blocking time
+   * outside the browser page.
+   */
   try {
     const longTaskObserver =
       new PerformanceObserver(
         (list) => {
-          for (
-            const entry of list.getEntries()
-          ) {
+          for (const entry of list.getEntries()) {
             window.__REACTPULSE_PERFORMANCE__.longTasks.push({
-              startTime:
-                entry.startTime,
-
-              duration:
-                entry.duration
+              startTime: entry.startTime,
+              duration: entry.duration
             });
           }
         }

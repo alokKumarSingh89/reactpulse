@@ -4,7 +4,11 @@ declare global {
   interface Window {
     __REACTPULSE_PERFORMANCE__?: {
       lcp: number | null;
-      cls: number;
+      layoutShifts: Array<{
+        value: number;
+        startTime: number;
+        hadRecentInput: boolean;
+      }>;
 
       longTasks: Array<{
         startTime: number;

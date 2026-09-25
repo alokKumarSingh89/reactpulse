@@ -15,6 +15,8 @@ describe('mapPerformanceMetrics', () => {
 
       cls: 0,
 
+      layoutShifts: [],
+
       domContentLoadedMs: 400,
 
       loadEventMs: 600,
@@ -46,21 +48,28 @@ describe('mapPerformanceMetrics', () => {
       expect.arrayContaining([
         expect.objectContaining({
           key: 'ttfb',
+
           value: 120,
         }),
 
         expect.objectContaining({
           key: 'fcp',
+
           value: 300,
         }),
 
         expect.objectContaining({
           key: 'lcp',
+
           value: 500,
         }),
 
+        /*
+         * Zero CLS is a valid measurement and must
+         * not be treated as missing data.
+         */
         expect.objectContaining({
-          key: 'synthetic_layout_shift',
+          key: 'synthetic_cls',
 
           value: 0,
         }),
@@ -89,6 +98,8 @@ describe('mapPerformanceMetrics', () => {
       lcpMs: null,
 
       cls: 0,
+
+      layoutShifts: [],
 
       domContentLoadedMs: 200,
 
@@ -136,6 +147,8 @@ describe('mapPerformanceMetrics', () => {
 
       cls: 0,
 
+      layoutShifts: [],
+
       domContentLoadedMs: 0,
 
       loadEventMs: 0,
@@ -163,16 +176,97 @@ describe('mapPerformanceMetrics', () => {
 
     const keys = mapPerformanceMetrics(metrics).map((metric) => metric.key);
 
+    /*
+     * A zero navigation lifecycle timing means the
+     * browser did not expose a completed measurement.
+     */
     expect(keys).not.toContain('dom_content_loaded');
 
     expect(keys).not.toContain('load_event');
 
     expect(keys).not.toContain('navigation_duration');
 
-    expect(keys).toContain('synthetic_layout_shift');
+    /*
+     * These zero values are real measurements.
+     */
+    expect(keys).toContain('synthetic_cls');
 
     expect(keys).toContain('long_task_count');
 
     expect(keys).toContain('observed_total_blocking_time');
+  });
+
+  it('persists calculated CLS but not individual layout-shift evidence as metrics', () => {
+    const metrics: PerformanceMetrics = {
+      ttfbMs: null,
+
+      fcpMs: null,
+
+      lcpMs: null,
+
+      cls: 0.15,
+
+      layoutShifts: [
+        {
+          value: 0.1,
+
+          startTime: 100,
+
+          hadRecentInput: false,
+        },
+
+        {
+          value: 0.05,
+
+          startTime: 500,
+
+          hadRecentInput: false,
+        },
+      ],
+
+      domContentLoadedMs: null,
+
+      loadEventMs: null,
+
+      navigationDurationMs: null,
+
+      longTaskCount: 0,
+
+      longTaskDurationMs: 0,
+
+      totalBlockingTimeMs: 0,
+
+      domNodes: 20,
+
+      resources: {
+        count: 0,
+
+        transferSize: 0,
+
+        encodedBodySize: 0,
+
+        decodedBodySize: 0,
+      },
+    };
+
+    const result = mapPerformanceMetrics(metrics);
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'synthetic_cls',
+
+          value: 0.15,
+
+          unit: 'score',
+        }),
+      ]),
+    );
+
+    const keys = result.map((metric) => metric.key);
+
+    expect(keys).not.toContain('synthetic_layout_shift');
+
+    expect(keys).not.toContain('layout_shifts');
   });
 });
