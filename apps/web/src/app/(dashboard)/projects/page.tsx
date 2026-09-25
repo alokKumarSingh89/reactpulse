@@ -1,4 +1,4 @@
-import { FolderKanban, Globe2, Plus } from "lucide-react";
+import { FolderKanban, Globe2 } from "lucide-react";
 
 import Link from "next/link";
 

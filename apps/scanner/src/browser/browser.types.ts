@@ -30,14 +30,6 @@ export interface DocumentResponseEvidence {
   headers: Record<string, string>;
 }
 
-export interface NetworkRequestEvidence {
-  url: string;
-
-  method: string;
-
-  resourceType: string;
-}
-
 export interface ConsoleEvidence {
   type: string;
 
@@ -50,16 +42,6 @@ export interface BrowserScanResult {
   navigation: NavigationEvidence;
 
   documentResponse: DocumentResponseEvidence | null;
-
-  /*
-   * Legacy request collection.
-   *
-   * Keep temporarily until the new NetworkCollector
-   * has been fully validated.
-   *
-   * Do NOT persist this as NETWORK_REQUEST anymore.
-   */
-  requests: NetworkRequestEvidence[];
 
   consoleMessages: ConsoleEvidence[];
 

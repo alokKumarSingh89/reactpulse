@@ -39,6 +39,14 @@ export function ScansDashboard({
 
   const selectedScanId = selectedScan?.id;
 
+  const selectedScanStatus = selectedScan?.status;
+
+  const shouldPoll = Boolean(
+    selectedScanId &&
+    selectedScanStatus &&
+    !TERMINAL_STATUSES.has(selectedScanStatus),
+  );
+
   const loadSelectedScan = useCallback(async () => {
     if (!selectedScanId) {
       return null;
@@ -74,7 +82,7 @@ export function ScansDashboard({
   }, []);
 
   useEffect(() => {
-    if (!selectedScan || TERMINAL_STATUSES.has(selectedScan.status)) {
+    if (!shouldPoll) {
       return;
     }
 
@@ -109,10 +117,10 @@ export function ScansDashboard({
 
       window.clearInterval(interval);
     };
-  }, [selectedScan?.status, loadSelectedScan, applyScanUpdate]);
+  }, [shouldPoll, loadSelectedScan, applyScanUpdate]);
 
   async function refresh() {
-    if (!selectedScan) {
+    if (!selectedScanId) {
       return;
     }
 
