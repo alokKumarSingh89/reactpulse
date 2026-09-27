@@ -30,6 +30,17 @@ export class OrganizationScansController {
     return this.scansService.findOneForOrganization(organizationId, scanId);
   }
 
+  @Get(':scanId/accessibility')
+  findAccessibility(
+    @Param('organizationId') organizationId: string,
+    @Param('scanId') scanId: string,
+  ) {
+    return this.scansService.findAccessibilityForOrganization(
+      organizationId,
+      scanId,
+    );
+  }
+
   @Get(':scanId/security')
   findSecurity(
     @Param('organizationId') organizationId: string,

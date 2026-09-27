@@ -328,7 +328,10 @@ export function projectAccessibilityAssessment(
     return null;
   }
 }
-function project(value: unknown): AccessibilityAssessment | null {
+function project(
+  value: unknown,
+  coverageOnly = false,
+): AccessibilityAssessment | null {
   const a = record(value);
   const reasons = vocabulary(a.reasons, ACCESSIBILITY_REASONS);
   if (
@@ -405,7 +408,7 @@ function project(value: unknown): AccessibilityAssessment | null {
     a.state === "COMPLETE" &&
     (reasons.length ||
       a.excludedFrameCount ||
-      results.length !== a.configuredRuleCount)
+      (!coverageOnly && results.length !== a.configuredRuleCount))
   )
     return null;
   if ((a.state === "PARTIAL" || a.state === "UNAVAILABLE") && !reasons.length)
@@ -453,4 +456,44 @@ function project(value: unknown): AccessibilityAssessment | null {
   return JSON.stringify(result).length <= ACCESSIBILITY_LIMITS.serializedBytes
     ? result
     : null;
+}
+
+/** Persisted 13.6A coverage omits rule results. Reuse all envelope validation;
+ * the full-observation entry point still requires complete rule coverage. */
+export type AccessibilityCoverage = Omit<AccessibilityAssessment, "results">;
+export function projectAccessibilityCoverage(
+  value: unknown,
+): AccessibilityCoverage | null {
+  try {
+    const a = record(value);
+    const safe = project(
+      {
+        version: a.version,
+        state: a.state,
+        scope: a.scope,
+        engine: a.engine,
+        mainDocumentEvaluated: a.mainDocumentEvaluated,
+        excludedFrameCount: a.excludedFrameCount,
+        reasons: a.reasons,
+        durationMs: a.durationMs,
+        configuredRuleCount: a.configuredRuleCount,
+        results: [],
+      },
+      true,
+    );
+    if (!safe) return null;
+    return {
+      version: safe.version,
+      state: safe.state,
+      scope: safe.scope,
+      engine: safe.engine,
+      mainDocumentEvaluated: safe.mainDocumentEvaluated,
+      excludedFrameCount: safe.excludedFrameCount,
+      reasons: safe.reasons,
+      durationMs: safe.durationMs,
+      configuredRuleCount: safe.configuredRuleCount,
+    };
+  } catch {
+    return null;
+  }
 }
