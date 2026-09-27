@@ -1,3 +1,4 @@
+import type { AccessibilityObservation } from '../accessibility/accessibility-observation.service';
 import type { PassiveSecurityObservation } from '../security/security-observation.service';
 import type { NetworkObservation } from '../network/network.types';
 
@@ -38,7 +39,8 @@ export interface ConsoleEvidence {
 }
 
 export interface BrowserScanResult {
-  /** Collection only: security persistence is intentionally not wired yet. */
+  /** Scanner-private raw memory only; excluded by the safe evidence projector. */
+  accessibility?: AccessibilityObservation;
   security?: PassiveSecurityObservation;
 
   browser: BrowserEvidence;
