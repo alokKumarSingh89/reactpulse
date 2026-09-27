@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { findingFingerprint } from '../findings/finding-fingerprint';
 import {
   ACCESSIBILITY_RULE_IDS,
   projectAccessibilityAssessment,
@@ -81,22 +81,17 @@ export function mapAccessibilityFindings(
     const [severity, confidence] =
       ACCESSIBILITY_FINDING_POLICY[row.engineImpact];
     const ruleId = `accessibility.axe-core.${id}` as const;
-    // Match security's SHA-256 tuple convention. Versions that change mapping
-    // identity are included; engine patch version, counts and samples are not.
-    const fingerprint = createHash('sha256')
-      .update(
-        JSON.stringify([
-          'ACCESSIBILITY',
-          engine.name,
-          id,
-          row.ruleVersion,
-          engine.rulesetVersion,
-          ACCESSIBILITY_MAPPING_VERSION,
-          engine.profileId,
-          'main-document',
-        ]),
-      )
-      .digest('hex');
+    const fingerprint = findingFingerprint({
+      category: 'ACCESSIBILITY',
+      ruleId,
+      ruleVersion: row.ruleVersion,
+      subject: { kind: 'MAIN_DOCUMENT' },
+      engine: engine.name,
+      engineRuleId: id,
+      rulesetVersion: engine.rulesetVersion,
+      mappingVersion: ACCESSIBILITY_MAPPING_VERSION,
+      profileId: engine.profileId,
+    });
     candidates.push({
       category: 'ACCESSIBILITY',
       ruleId,

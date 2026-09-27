@@ -1,6 +1,7 @@
 import { SECURITY_FINDING_PRESENTATION as templates } from '@reactpulse/contracts';
 import { Injectable } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { findingFingerprint } from '../findings/finding-fingerprint';
+import type { SafeFindingResource } from '@reactpulse/contracts';
 import type { Prisma } from '@reactpulse/database';
 import { DatabaseService } from '../database/database.service';
 import {
@@ -50,7 +51,7 @@ function projectFinding(
     throw new Error('Invalid security finding result');
   const subject = result.evidence.subject;
   let affectedResource: string;
-  let safeSubject: Prisma.InputJsonObject;
+  let safeSubject: SafeFindingResource;
   if (source === 'cookies') {
     if (
       subject.kind !== 'COOKIE' ||
@@ -74,16 +75,12 @@ function projectFinding(
     affectedResource = 'main-document';
     safeSubject = { kind: 'MAIN_DOCUMENT' };
   }
-  const fingerprint = createHash('sha256')
-    .update(
-      JSON.stringify([
-        'SECURITY',
-        ruleId,
-        SECURITY_RULE_VERSION,
-        affectedResource,
-      ]),
-    )
-    .digest('hex');
+  const fingerprint = findingFingerprint({
+    category: 'SECURITY',
+    ruleId,
+    ruleVersion: SECURITY_RULE_VERSION,
+    subject: safeSubject,
+  });
   return {
     scanId,
     category: 'SECURITY',

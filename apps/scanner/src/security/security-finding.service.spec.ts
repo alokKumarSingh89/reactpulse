@@ -110,7 +110,7 @@ describe('SecurityFindingService', () => {
   it('projects fixed content, existing enums, safe references and no secret canaries', async () => {
     const h = setup();
     const input = evaluation([result(), result(true)]);
-    const secret = 'authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
+    const secret = 'findings-email-canary@example.com findings-token-canary-9182 findings-input-secret-7712 findings-dom-secret-6631 findings-url-secret-5520 authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
     Object.assign(input, { headers: { authorization: secret }, url: secret });
     Object.assign(input.coverage, {
       extra: secret,
@@ -163,7 +163,13 @@ describe('SecurityFindingService', () => {
     expect(
       JSON.stringify([h.createMany.mock.calls, h.upsert.mock.calls]),
     ).not.toContain(secret);
-    expect(h.rows()[0].fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    for (const canary of secret.split(' ').slice(0, 5)) {
+      expect(JSON.stringify(h.createMany.mock.calls)).not.toContain(canary);
+    }
+    expect(h.rows().map(row => row.fingerprint)).toEqual([
+      '954b1c3a489442ced5ce27a5fa707a7d527c23aaab9fcdaba40607509e4b7be4',
+      'a60dcc2fe240fc771c13b96e595671acdd5bcd6e8b7f6cdb75406a6853635a1c',
+    ]);
     expect(h.deleteMany).toHaveBeenCalledExactlyOnceWith({
       where: { scanId: 'scan', category: 'SECURITY' },
     });

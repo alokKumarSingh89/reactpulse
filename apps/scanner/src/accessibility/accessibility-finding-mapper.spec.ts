@@ -47,6 +47,9 @@ function fixture(
 }
 
 describe('accessibility finding mapper', () => {
+  it('preserves the persisted label fingerprint', () => {
+    expect(map(fixture())[0].fingerprint).toBe('814e2368ed0f16d09571bc94bf1fdee7bf2d1720bceaf36ff6d4d526e414d181');
+  });
   it.each(ACCESSIBILITY_RULE_IDS)(
     'maps reviewed catalog rule %s using application prose',
     (id) => {
@@ -163,6 +166,8 @@ describe('accessibility finding mapper', () => {
 
   it('excludes privacy canaries from projected hostile engine data and extra safe-object properties', () => {
     const canaries = [
+      'findings-email-canary@example.com', 'findings-token-canary-9182',
+      'findings-input-secret-7712', 'findings-dom-secret-6631', 'findings-url-secret-5520',
       'accessibility-email-canary@example.com',
       'accessibility-token-canary-9182',
       'accessibility-input-secret-7712',
