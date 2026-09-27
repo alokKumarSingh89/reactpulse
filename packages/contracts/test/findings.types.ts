@@ -81,3 +81,11 @@ const invalidSecurity: DeterministicFindingCandidate = { ...security, evidence: 
 // @ts-expect-error Accessibility cannot carry Performance evidence.
 const invalidAccessibility: DeterministicFindingCandidate = { ...accessibility, evidence: performance.evidence };
 void [performanceEvidence, invalidPerformance, invalidSecurity, invalidAccessibility];
+
+declare const network: Extract<DeterministicFindingCandidate, { category: "NETWORK" }>;
+const networkEvidence: FindingEvidenceByCategory["NETWORK"] = network.evidence;
+// @ts-expect-error Network cannot carry performance evidence.
+const invalidNetwork: DeterministicFindingCandidate = { ...network, evidence: performance.evidence };
+// @ts-expect-error Security cannot carry network evidence.
+const networkInSecurity: DeterministicFindingCandidate = { ...security, evidence: network.evidence };
+void [networkEvidence, invalidNetwork, networkInSecurity];

@@ -1,4 +1,10 @@
 import {
+  NETWORK_FINDING_RULE_ID,
+  NETWORK_FINDING_PRESENTATION,
+  projectNetworkFindingEvidence,
+  type NetworkFindingEvidence,
+} from "./network-findings";
+import {
   PERFORMANCE_FINDING_RULES,
   projectPerformanceFindingEvidence,
   type PerformanceFindingRuleId,
@@ -69,6 +75,11 @@ export type AccessibilityFindingRuleId =
   `accessibility.axe-core.${AccessibilityRuleId}`;
 export type DeterministicRuleIdentity =
   | {
+      category: "NETWORK";
+      ruleId: typeof NETWORK_FINDING_RULE_ID;
+      ruleVersion: FindingRuleVersion;
+    }
+  | {
       category: "PERFORMANCE";
       ruleId: PerformanceFindingRuleId;
       ruleVersion: FindingRuleVersion;
@@ -85,7 +96,7 @@ export type DeterministicRuleIdentity =
     };
 
 // Only reviewed, application-owned IDs are executable identities. Future
-// NETWORK/RESOURCE rules must add their concrete registries and
+// RESOURCE rules must add their concrete registries and
 // evidence union branches; a category name alone does not authorize a rule.
 const accessibilityIds = ACCESSIBILITY_RULE_IDS.map(
   (id) => `accessibility.axe-core.${id}` as const,
@@ -97,6 +108,11 @@ const performanceIds = Object.keys(
   PERFORMANCE_FINDING_RULES,
 ) as PerformanceFindingRuleId[];
 const prose = [
+  [
+    NETWORK_FINDING_PRESENTATION.title,
+    NETWORK_FINDING_PRESENTATION.description,
+    NETWORK_FINDING_PRESENTATION.recommendation,
+  ],
   ...Object.values(PERFORMANCE_FINDING_RULES).map((v) => [
     v.title,
     v.description,
@@ -113,6 +129,7 @@ const prose = [
  * arbitrary per-category limits. Adding longer copy is a reviewed catalog edit. */
 export const FINDING_CATALOG_LIMITS = {
   ruleId: Math.max(
+    NETWORK_FINDING_RULE_ID.length,
     ...performanceIds.map((id) => id.length),
     ...securityIds.map((id) => id.length),
     ...accessibilityIds.map((id) => id.length),
@@ -141,6 +158,9 @@ export type MainDocumentFindingResource = Extract<
  * timestamps or random values. Cookie ordinals are scan-local, not a claim of
  * stable cross-scan cookie identity. Future comparisons also need tenant/context. */
 export type FindingFingerprintIdentity =
+  | (Extract<DeterministicRuleIdentity, { category: "NETWORK" }> & {
+      subject: MainDocumentFindingResource;
+    })
   | (Extract<DeterministicRuleIdentity, { category: "PERFORMANCE" }> & {
       subject: MainDocumentFindingResource;
       metric: PerformanceFindingMetric;
@@ -158,6 +178,7 @@ export type FindingFingerprintIdentity =
     });
 
 export interface FindingEvidenceByCategory {
+  NETWORK: NetworkFindingEvidence;
   PERFORMANCE: PerformanceFindingEvidence;
   SECURITY: SecurityEvidence;
   ACCESSIBILITY: AccessibilityReportFinding["evidence"];
@@ -206,6 +227,15 @@ export function projectDeterministicRuleIdentity(
       r.ruleId.length > FINDING_CATALOG_LIMITS.ruleId
     )
       return null;
+    if (r.category === "NETWORK") {
+      return r.ruleId === NETWORK_FINDING_RULE_ID
+        ? {
+            category: "NETWORK",
+            ruleId: NETWORK_FINDING_RULE_ID,
+            ruleVersion: r.ruleVersion,
+          }
+        : null;
+    }
     if (r.category === "PERFORMANCE") {
       const ruleId = performanceIds.find((id) => id === r.ruleId);
       return ruleId
@@ -236,6 +266,8 @@ export function projectDeterministicRuleDefinition(
 ): DeterministicRuleDefinition | null {
   const identity = projectDeterministicRuleIdentity(value);
   if (!identity || identity.ruleVersion !== 1) return null;
+  if (identity.category === "NETWORK")
+    return { ...identity, ...NETWORK_FINDING_PRESENTATION };
   if (identity.category === "PERFORMANCE") {
     const { title, description, recommendation } =
       PERFORMANCE_FINDING_RULES[identity.ruleId];
@@ -276,6 +308,11 @@ export function projectFindingFingerprintIdentity(
       identity = projectDeterministicRuleIdentity(r),
       subject = record(r.subject);
     if (!identity) return null;
+    if (identity.category === "NETWORK") {
+      return subject.kind === "MAIN_DOCUMENT"
+        ? { ...identity, subject: { kind: "MAIN_DOCUMENT" } }
+        : null;
+    }
     if (identity.category === "PERFORMANCE") {
       const metric = PERFORMANCE_FINDING_RULES[identity.ruleId].metric;
       if (subject.kind !== "MAIN_DOCUMENT" || r.metric !== metric) return null;
@@ -408,6 +445,20 @@ export function projectDeterministicFindingCandidate(
         title,
         description,
         recommendation,
+        affectedResource: { kind: "MAIN_DOCUMENT" },
+        fingerprintIdentity: fingerprint,
+        evidence,
+      };
+    }
+    if (identity.category === "NETWORK" && fingerprint.category === "NETWORK") {
+      const evidence = projectNetworkFindingEvidence(input.evidence);
+      if (!evidence || input.severity !== "INFO" || input.confidence !== "HIGH")
+        return null;
+      return {
+        ...identity,
+        ...NETWORK_FINDING_PRESENTATION,
+        severity: "INFO",
+        confidence: "HIGH",
         affectedResource: { kind: "MAIN_DOCUMENT" },
         fingerprintIdentity: fingerprint,
         evidence,

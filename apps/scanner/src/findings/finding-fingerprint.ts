@@ -32,15 +32,22 @@ export function findingFingerprint(input: FindingFingerprintIdentity): string {
             identity.metric,
             'main-document',
           ]
-        : [
-            identity.category,
-            identity.engine,
-            identity.engineRuleId,
-            identity.ruleVersion,
-            identity.rulesetVersion,
-            identity.mappingVersion,
-            identity.profileId,
-            'main-document',
-          ];
+        : identity.category === 'NETWORK'
+          ? [
+              identity.category,
+              identity.ruleId,
+              identity.ruleVersion,
+              'main-document',
+            ]
+          : [
+              identity.category,
+              identity.engine,
+              identity.engineRuleId,
+              identity.ruleVersion,
+              identity.rulesetVersion,
+              identity.mappingVersion,
+              identity.profileId,
+              'main-document',
+            ];
   return createHash('sha256').update(JSON.stringify(tuple)).digest('hex');
 }
