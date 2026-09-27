@@ -1,3 +1,4 @@
+import type { PassiveSecurityObservation } from '../security/security-observation.service';
 import type { NetworkObservation } from '../network/network.types';
 
 import type { PerformanceObservation } from '../performance/performance.types';
@@ -37,6 +38,9 @@ export interface ConsoleEvidence {
 }
 
 export interface BrowserScanResult {
+  /** Collection only: security persistence is intentionally not wired yet. */
+  security?: PassiveSecurityObservation;
+
   browser: BrowserEvidence;
 
   navigation: NavigationEvidence;

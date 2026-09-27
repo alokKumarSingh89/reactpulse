@@ -1,3 +1,5 @@
+import { SecurityFindingService } from '../security/security-finding.service';
+import { evaluateSecurityRules } from '../security/security-rules';
 import {
   Injectable,
   Logger,
@@ -22,7 +24,7 @@ import { NetworkMetricService } from '../network/network-metric.service';
 import { PerformanceMetricService } from '../performance/performance-metric.service';
 
 import { RedisService } from '../queue/redis.service';
-import { ScanExecutionError } from './scan-failure';
+import { ScanExecutionError, normalizeFailure } from './scan-failure';
 
 @Injectable()
 export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
@@ -42,13 +44,22 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly performanceMetricService: PerformanceMetricService,
 
     private readonly networkMetricService: NetworkMetricService,
+
+    private readonly securityFindingService: SecurityFindingService,
   ) {}
 
   onModuleInit(): void {
     this.worker = new Worker<ExecuteScanJob>(
       SCAN_QUEUE,
 
-      async (job) => this.processJob(job),
+      async (job) => {
+        try {
+          await this.processJob(job);
+        } catch (error) {
+          const failure = normalizeFailure(error);
+          throw new ScanExecutionError(failure.code, failure.message);
+        }
+      },
 
       {
         connection: this.redis.client,
@@ -69,7 +80,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
 
     this.worker.on('failed', (job, error) => {
       this.logger.error(
-        `Scan job failed: ${job?.id ?? 'unknown'} - ${error.message}`,
+        `Scan job failed: ${job?.id ?? 'unknown'} - ${normalizeFailure(error).code}`,
       );
     });
 
@@ -143,7 +154,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       const result = await this.browserScanner.scan(scan.targetUrl);
 
       /*
-       * Persist raw evidence first.
+       * Persist explicitly projected evidence first.
        *
        * This includes:
        *
@@ -165,6 +176,14 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       );
 
       await this.networkMetricService.replaceForScan(scan.id, result.network);
+
+      const securityEvaluation = result.security
+        ? evaluateSecurityRules(result.security.assessment)
+        : null;
+      await this.securityFindingService.replaceForScan(
+        scan.id,
+        securityEvaluation,
+      );
 
       await this.database.client.scan.update({
         where: {
@@ -222,39 +241,8 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
             },
       });
 
-      throw error;
+      // BullMQ persists error messages/stacks; never propagate raw browser/DB errors.
+      throw new ScanExecutionError(failure.code, failure.message);
     }
   }
-}
-
-interface NormalizedFailure {
-  code: string;
-
-  message: string;
-}
-
-function normalizeFailure(error: unknown): NormalizedFailure {
-  if (error instanceof ScanExecutionError) {
-    return {
-      code: error.code,
-
-      message: sanitizeFailureMessage(error.message),
-    };
-  }
-
-  return {
-    code: 'SCAN_EXECUTION_FAILED',
-
-    message: 'ReactPulse could not complete the browser scan.',
-  };
-}
-
-function sanitizeFailureMessage(message: string): string {
-  /*
-   * Scanner-specific errors should already contain
-   * customer-safe messages.
-   *
-   * Bound their size before persisting them.
-   */
-  return message.replace(/\s+/g, ' ').trim().slice(0, 500);
 }

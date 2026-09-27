@@ -21,7 +21,7 @@ export function Button({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400",
         "disabled:pointer-events-none disabled:opacity-50",
 
-        variant === "primary" && "bg-slate-950 text-white hover:bg-slate-800",
+        variant === "primary" && "bg-blue-600 text-white hover:bg-blue-700",
 
         variant === "secondary" &&
           "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",

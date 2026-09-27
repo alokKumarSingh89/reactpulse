@@ -1,57 +1,49 @@
-const SENSITIVE_QUERY_KEYS = new Set([
-  'access_token',
-  'accesstoken',
+const INVALID_URL = '[INVALID_URL]';
+const MAX_INPUT_LENGTH = 16_384;
+const MAX_PROJECTED_LENGTH = 4_096;
 
-  'api_key',
-  'apikey',
+/**
+ * Evidence/display projection only, never an execution URL or SSRF decision.
+ * Omits paths as well as userinfo, query strings and fragments. Hostnames may
+ * still contain identifying data; this is minimization, not anonymization.
+ */
+export function projectSafeUrlOrigin(rawUrl: string): string {
+  const url = parseEvidenceUrl(rawUrl);
+  return url ? boundedProjection(url.origin) : INVALID_URL;
+}
 
-  'authorization',
-
-  'auth',
-
-  'code',
-
-  'credential',
-
-  'email',
-
-  'jwt',
-
-  'key',
-
-  'password',
-
-  'refresh_token',
-  'refreshtoken',
-
-  'secret',
-
-  'session',
-  'session_id',
-  'sessionid',
-
-  'sig',
-  'signature',
-
-  'token',
-]);
-
+/**
+ * Preserve pathname visibility used by Sprint 11's resource/request tables.
+ * Paths remain percent-encoded and may themselves contain secrets. Do not use
+ * this compatibility projection for security references: use origin projection
+ * or the contract's scan-local ordinal instead. No secret-detection claim is
+ * made for arbitrary paths.
+ */
 export function sanitizeNetworkUrl(rawUrl: string): string {
+  const url = parseEvidenceUrl(rawUrl);
+  return url ? boundedProjection(`${url.origin}${url.pathname}`) : INVALID_URL;
+}
+
+function parseEvidenceUrl(rawUrl: string): URL | null {
+  // Bound parsing work and reject unsupported inputs without echoing them.
+  if (typeof rawUrl !== 'string' || rawUrl.length > MAX_INPUT_LENGTH) {
+    return null;
+  }
+
   try {
     const url = new URL(rawUrl);
-
-    url.hash = '';
-
-    for (const key of Array.from(url.searchParams.keys())) {
-      const normalizedKey = key.trim().toLowerCase();
-
-      if (SENSITIVE_QUERY_KEYS.has(normalizedKey)) {
-        url.searchParams.set(key, '[REDACTED]');
-      }
+    if (
+      (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+      !url.hostname
+    ) {
+      return null;
     }
-
-    return url.toString();
+    return url;
   } catch {
-    return '[INVALID_URL]';
+    return null;
   }
+}
+
+function boundedProjection(value: string): string {
+  return value.length <= MAX_PROJECTED_LENGTH ? value : INVALID_URL;
 }

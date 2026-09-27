@@ -1,3 +1,9 @@
+import {
+  getOrganizationScans,
+  getOrganizationScan,
+} from "@/features/scans/scan-api";
+import { ScanAnalytics, scanDate } from "@/features/scans/scan-analytics";
+import { RunScanButton } from "@/features/scans/run-scan-button";
 import { ArrowLeft, FolderKanban, Globe2 } from "lucide-react";
 
 import Link from "next/link";
@@ -22,12 +28,16 @@ import { ApiError } from "@/lib/api/api-error";
 import { ProjectActions } from "@/features/projects/project-actions";
 
 interface ProjectPageProps {
+  searchParams: Promise<{ environmentId?: string }>;
   params: Promise<{
     projectId: string;
   }>;
 }
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: ProjectPageProps) {
   const { projectId } = await params;
 
   const user = await getCurrentUser();
@@ -58,8 +68,21 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   const environments = await getEnvironments(organizationId, project.id);
 
+  const { environmentId } = await searchParams;
+  const selected =
+    environments.find((environment) => environment.id === environmentId) ??
+    environments[0];
+  const scans = await getOrganizationScans(organizationId).catch(() => null);
+  const scoped =
+    scans?.filter((scan) => scan.environment.id === selected?.id) ?? [];
+  const latest = scoped[0];
+  const completed = scoped.find((scan) => scan.status === "COMPLETED");
+  const detail = completed
+    ? await getOrganizationScan(organizationId, completed.id).catch(() => null)
+    : null;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <Link
         href="/projects"
         className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-950"
@@ -70,28 +93,76 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-700">
             <FolderKanban size={20} />
           </div>
 
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
                 {project.name}
               </h1>
 
               <Badge>{project.status}</Badge>
-              <ProjectActions
-                organizationId={organizationId}
-                project={project}
-              />
             </div>
 
-            <p className="mt-1 text-sm text-slate-500">{project.slug}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {selected?.name ?? "No environment"} ·{" "}
+              {scans === null
+                ? "Scan history unavailable"
+                : latest
+                  ? `Last scan ${scanDate(latest.createdAt)}`
+                  : "Not scanned yet"}
+            </p>
           </div>
         </div>
       </div>
 
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">
+              {selected?.name ?? "Deployment context"}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {completed
+                ? `Latest completed measurements · ${scanDate(completed.completedAt ?? completed.createdAt)}`
+                : "No completed scan"}
+            </p>
+          </div>
+          {selected && (
+            <RunScanButton
+              organizationId={organizationId}
+              projectId={project.id}
+              environmentId={selected.id}
+            />
+          )}
+        </div>
+        <ScanAnalytics compact metrics={detail?.metrics} />
+        {completed && (
+          <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-100 pt-3 text-xs text-blue-700">
+            <Link href={`/scans?scanId=${encodeURIComponent(completed.id)}`}>
+              Scan details →
+            </Link>
+            <Link
+              href={`/performance?scanId=${encodeURIComponent(completed.id)}`}
+            >
+              Performance →
+            </Link>
+            <Link href={`/network?scanId=${encodeURIComponent(completed.id)}`}>
+              Network →
+            </Link>
+          </div>
+        )}
+      </section>
+      <details className="text-sm">
+        <summary className="w-fit cursor-pointer rounded text-xs text-slate-500">
+          Project management
+        </summary>
+        <div className="mt-2">
+          <ProjectActions organizationId={organizationId} project={project} />
+        </div>
+      </details>
       <section className="space-y-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -133,13 +204,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="space-y-3">
             {environments.map((environment) => (
               <EnvironmentCard
                 key={environment.id}
                 organizationId={organizationId}
                 projectId={project.id}
                 environment={environment}
+                selected={environment.id === selected?.id}
               />
             ))}
           </div>
