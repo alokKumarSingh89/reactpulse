@@ -142,6 +142,11 @@ function reference(value: number): boolean {
  * PARTIAL coverage is scoped: Task 4 always lacks mixed-content provenance, which
  * must not erase independently observed main-document facts. Unscoped partial
  * coverage and collection/navigation limits conservatively suppress conclusions.
+ * Ordering: transport, mixed-content coverage, CSP, HSTS, nosniff, referrer
+ * policy, permissions policy, framing, cookie coverage, then cookie conditions.
+ * Cookie subjects sort by response ordinal and cookie ordinal; each emits Secure,
+ * HttpOnly, SameSite absence, then SameSite=None-without-Secure. Coverage reasons
+ * follow the fixed allowlist order, independent of their incoming order.
  */
 export function evaluateSecurityRules(
   input: PassiveSecurityAssessment,

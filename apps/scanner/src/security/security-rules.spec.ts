@@ -604,6 +604,73 @@ describe('mixed content is deferred until provenance exists', () => {
 });
 
 describe('purity and bounded output', () => {
+  it('keeps a fixed rule order across reordered cookie subjects and coverage reasons', () => {
+    const a = assessment();
+    a.coverage.reasons = [
+      'UNSUPPORTED_SYNTAX',
+      'NETWORK_OBSERVATION_UNAVAILABLE',
+    ];
+    a.cookies = {
+      state: 'OBSERVED',
+      facts: [
+        cookie({ documentResponseOrdinal: 2, ordinal: 0 }),
+        cookie({ documentResponseOrdinal: 0, ordinal: 1 }),
+        cookie({ documentResponseOrdinal: 0, ordinal: 0 }),
+      ],
+    };
+    const result = evaluateSecurityRules(a);
+    expect(
+      result.results
+        .filter((r) => r.evidence.subject.kind !== 'COOKIE')
+        .map((r) => r.ruleId),
+    ).toEqual([
+      'security.transport.insecure-final',
+      'security.transport.downgrade',
+      'security.transport.insecure-entry',
+      'security.transport.https-final',
+      'security.mixed-content.assessment',
+      'security.csp.missing',
+      'security.csp.report-only',
+      'security.hsts.missing',
+      'security.hsts.invalid',
+      'security.hsts.disabled',
+      'security.content-type-options.missing',
+      'security.referrer-policy.missing',
+      'security.referrer-policy.permissive',
+      'security.permissions-policy.missing',
+      'security.frame-protection.missing',
+      'security.cookie.assessment',
+    ]);
+    const cookieResults = result.results.filter(
+      (r) => r.evidence.subject.kind === 'COOKIE',
+    );
+    for (const [index, [documentResponseOrdinal, cookieOrdinal]] of [
+      [0, 0],
+      [0, 1],
+      [2, 0],
+    ].entries()) {
+      const group = cookieResults.slice(index * 4, index * 4 + 4);
+      expect(group.map((r) => r.ruleId)).toEqual([
+        'security.cookie.secure-missing',
+        'security.cookie.httponly-missing',
+        'security.cookie.samesite-missing',
+        'security.cookie.samesite-none-without-secure',
+      ]);
+      expect(
+        group.every(
+          (r) =>
+            r.evidence.subject.kind === 'COOKIE' &&
+            r.evidence.subject.documentResponseOrdinal ===
+              documentResponseOrdinal &&
+            r.evidence.subject.cookieOrdinal === cookieOrdinal,
+        ),
+      ).toBe(true);
+    }
+    a.cookies = { state: 'OBSERVED', facts: [...a.cookies.facts].reverse() };
+    a.coverage.reasons = [...a.coverage.reasons].reverse();
+    expect(evaluateSecurityRules(a)).toEqual(result);
+  });
+
   it('is deterministic, leaves input unchanged and has one rule per subject/condition', () => {
     const a = assessment();
     a.cookies = {
