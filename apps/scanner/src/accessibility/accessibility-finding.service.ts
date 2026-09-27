@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   ACCESSIBILITY_RULE_IDS,
+  type AccessibilityAssessment,
   projectAccessibilityAssessment,
 } from '@reactpulse/contracts';
 import type { Prisma } from '@reactpulse/database';
@@ -126,6 +127,9 @@ function projectCandidate(
   };
 }
 
+// DOCUMENT_RESPONSE 0 is document evidence; 1 belongs to security.
+export const ACCESSIBILITY_ASSESSMENT_SEQUENCE = 2;
+
 @Injectable()
 export class AccessibilityFindingService {
   constructor(private readonly database: DatabaseService) {}
@@ -137,7 +141,45 @@ export class AccessibilityFindingService {
   async replaceForScan(
     scanId: string,
     candidates: readonly AccessibilityFindingCandidate[],
+    assessment: AccessibilityAssessment | null,
   ): Promise<void> {
+    const safe =
+      assessment === null ? null : projectAccessibilityAssessment(assessment);
+    if (
+      (assessment !== null && !safe) ||
+      ((!safe ||
+        safe.state === 'NOT_ASSESSED' ||
+        safe.state === 'UNAVAILABLE') &&
+        candidates.length)
+    ) {
+      throw new Error('Invalid accessibility assessment');
+    }
+    // Coverage only: rule observations remain in the safe finding evidence.
+    const marker =
+      safe && safe.state !== 'NOT_ASSESSED'
+        ? {
+            kind: 'ACCESSIBILITY_ASSESSMENT',
+            version: 1,
+            assessment: {
+              version: safe.version,
+              state: safe.state,
+              scope: safe.scope,
+              engine: safe.engine
+                ? {
+                    name: safe.engine.name,
+                    version: safe.engine.version,
+                    rulesetVersion: safe.engine.rulesetVersion,
+                    profileId: safe.engine.profileId,
+                  }
+                : null,
+              mainDocumentEvaluated: safe.mainDocumentEvaluated,
+              excludedFrameCount: safe.excludedFrameCount,
+              reasons: safe.reasons.slice(),
+              durationMs: safe.durationMs,
+              configuredRuleCount: safe.configuredRuleCount,
+            },
+          }
+        : null;
     const rows = new Map<string, Prisma.FindingCreateManyInput>();
     try {
       if (
@@ -164,6 +206,32 @@ export class AccessibilityFindingService {
       throw new Error('Invalid accessibility finding candidate');
     }
     await this.database.client.$transaction(async (tx) => {
+      if (marker) {
+        await tx.scanEvidence.upsert({
+          where: {
+            scanId_type_sequence: {
+              scanId,
+              type: 'DOCUMENT_RESPONSE',
+              sequence: ACCESSIBILITY_ASSESSMENT_SEQUENCE,
+            },
+          },
+          create: {
+            scanId,
+            type: 'DOCUMENT_RESPONSE',
+            sequence: ACCESSIBILITY_ASSESSMENT_SEQUENCE,
+            data: marker,
+          },
+          update: { data: marker },
+        });
+      } else {
+        await tx.scanEvidence.deleteMany({
+          where: {
+            scanId,
+            type: 'DOCUMENT_RESPONSE',
+            sequence: ACCESSIBILITY_ASSESSMENT_SEQUENCE,
+          },
+        });
+      }
       await tx.finding.deleteMany({
         where: { scanId, category: 'ACCESSIBILITY' },
       });

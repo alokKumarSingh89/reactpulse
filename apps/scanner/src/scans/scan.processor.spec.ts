@@ -191,12 +191,16 @@ describe('accessibility persistence orchestration', () => {
       },
     } as unknown as AccessibilityObservation;
     await h.run();
-    expect(h.accessibility.replaceForScan).toHaveBeenCalledWith('scan', [
-      expect.objectContaining({
-        category: 'ACCESSIBILITY',
-        ruleId: 'accessibility.axe-core.label',
-      }),
-    ]);
+    expect(h.accessibility.replaceForScan).toHaveBeenCalledWith(
+      'scan',
+      [
+        expect.objectContaining({
+          category: 'ACCESSIBILITY',
+          ruleId: 'accessibility.axe-core.label',
+        }),
+      ],
+      expect.objectContaining({ state: 'PARTIAL' }),
+    );
     expect(
       JSON.stringify(h.accessibility.replaceForScan.mock.calls),
     ).not.toContain('private-canary');
@@ -222,7 +226,13 @@ describe('accessibility persistence orchestration', () => {
           reason: 'ENGINE_TIMEOUT',
         };
       await h.run();
-      expect(h.accessibility.replaceForScan).toHaveBeenCalledWith('scan', []);
+      expect(h.accessibility.replaceForScan).toHaveBeenCalledWith(
+        'scan',
+        [],
+        state === 'absent'
+          ? null
+          : expect.objectContaining({ state: 'UNAVAILABLE' }),
+      );
       expect(h.order).toEqual([
         'RUNNING',
         'browser',

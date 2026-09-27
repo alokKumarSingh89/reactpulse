@@ -1,3 +1,4 @@
+import type { AccessibilityAssessment } from '@reactpulse/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '@reactpulse/database';
 import type { DatabaseService } from '../database/database.service';
@@ -48,7 +49,59 @@ function candidates() {
     }),
   );
 }
+function assessment(
+  state: 'COMPLETE' | 'PARTIAL' | 'UNAVAILABLE' = 'COMPLETE',
+): AccessibilityAssessment {
+  return {
+    version: 1,
+    state,
+    scope: 'MAIN_DOCUMENT',
+    engine: {
+      name: 'axe-core',
+      version: '4.13.0',
+      rulesetVersion: 1,
+      profileId: 'main-document-v1',
+    },
+    mainDocumentEvaluated: state !== 'UNAVAILABLE',
+    excludedFrameCount: 0,
+    durationMs: 10,
+    configuredRuleCount: 1,
+    reasons:
+      state === 'COMPLETE'
+        ? []
+        : [state === 'PARTIAL' ? 'REFERENCE_UNAVAILABLE' : 'ENGINE_TIMEOUT'],
+    results:
+      state === 'UNAVAILABLE'
+        ? []
+        : [
+            {
+              ruleId: 'label',
+              ruleVersion: 1,
+              outcome: 'INAPPLICABLE',
+              engineImpact: 'UNKNOWN',
+              occurrenceCount: 0,
+              countPrecision: 'EXACT',
+              samplesTruncated: false,
+              sampledReferences: [],
+              wcagTags: [],
+              wcagCriteria: [],
+            },
+          ],
+  };
+}
 function setup() {
+  const markers = new Map<string, unknown>();
+  const upsert = vi.fn(
+    async ({ create }: { create: { scanId: string; data: unknown } }) => {
+      markers.set(create.scanId, create.data);
+    },
+  );
+  const removeMarker = vi.fn(
+    async ({ where }: { where: { scanId: string } }) => {
+      markers.delete(where.scanId);
+    },
+  );
+  let failCommit = false;
   let rows: Prisma.FindingCreateManyInput[] = [];
   const deleteMany = vi.fn(
     async ({ where }: { where: { scanId: string; category: string } }) => {
@@ -65,10 +118,17 @@ function setup() {
   const transaction = vi.fn(
     async (callback: (tx: unknown) => Promise<void>) => {
       const before = rows.slice();
+      const saved = new Map(markers);
       try {
-        await callback({ finding: { deleteMany, createMany } });
+        await callback({
+          finding: { deleteMany, createMany },
+          scanEvidence: { upsert, deleteMany: removeMarker },
+        });
+        if (failCommit) throw new Error('commit failed');
       } catch (error) {
         rows = before;
+        markers.clear();
+        saved.forEach((value, key) => markers.set(key, value));
         throw error;
       }
     },
@@ -77,6 +137,12 @@ function setup() {
     service: new AccessibilityFindingService({
       client: { $transaction: transaction },
     } as unknown as DatabaseService),
+    markers,
+    upsert,
+    removeMarker,
+    failCommit: () => {
+      failCommit = true;
+    },
     rows: () => rows,
     seed: (data: Prisma.FindingCreateManyInput[]) => {
       rows = data;
@@ -91,7 +157,7 @@ describe('AccessibilityFindingService', () => {
   it('reconciles A/B/C to A/C to zero, preserving other categories and scans', async () => {
     const h = setup();
     const [a, b, c] = candidates();
-    await h.service.replaceForScan('scan', [a, b, c]);
+    await h.service.replaceForScan('scan', [a, b, c], assessment());
     expect(h.rows()).toHaveLength(3);
     const base = h.rows()[0];
     const retained: Prisma.FindingCreateManyInput[] = [
@@ -103,7 +169,7 @@ describe('AccessibilityFindingService', () => {
       { ...base, scanId: 'other' },
     ];
     h.seed([...h.rows(), ...retained]);
-    await h.service.replaceForScan('scan', [a, c]);
+    await h.service.replaceForScan('scan', [a, c], assessment());
     expect(
       h
         .rows()
@@ -111,7 +177,7 @@ describe('AccessibilityFindingService', () => {
         .map((r) => r.fingerprint)
         .sort(),
     ).toEqual([a.fingerprint, c.fingerprint].sort());
-    await h.service.replaceForScan('scan', []);
+    await h.service.replaceForScan('scan', [], assessment());
     expect(h.rows()).toEqual(retained);
     expect(h.deleteMany).toHaveBeenLastCalledWith({
       where: { scanId: 'scan', category: 'ACCESSIBILITY' },
@@ -123,13 +189,13 @@ describe('AccessibilityFindingService', () => {
   it('is logically idempotent, order independent and deduplicates identical candidates', async () => {
     const h = setup();
     const input = candidates();
-    await h.service.replaceForScan('scan', input);
+    await h.service.replaceForScan('scan', input, assessment());
     const first = h.rows();
-    await h.service.replaceForScan('scan', input);
+    await h.service.replaceForScan('scan', input, assessment());
     expect(h.rows()).toEqual(first);
-    await h.service.replaceForScan('scan', [...input].reverse());
+    await h.service.replaceForScan('scan', [...input].reverse(), assessment());
     expect(h.rows()).toEqual(first);
-    await h.service.replaceForScan('scan', [...input, input[0]]);
+    await h.service.replaceForScan('scan', [...input, input[0]], assessment());
     expect(h.rows()).toEqual(first);
   });
 
@@ -145,7 +211,7 @@ describe('AccessibilityFindingService', () => {
         error: secret,
       });
     }
-    await h.service.replaceForScan('scan', input);
+    await h.service.replaceForScan('scan', input, assessment());
     for (const candidate of input) {
       const row = h.rows().find((r) => r.fingerprint === candidate.fingerprint);
       expect(row).toMatchObject({
@@ -188,7 +254,7 @@ describe('AccessibilityFindingService', () => {
     Object.assign(input[0].evidence.sampledReferences[0].path![0], {
       class: secret,
     });
-    await h.service.replaceForScan('scan', input);
+    await h.service.replaceForScan('scan', input, assessment());
     const persisted = h
       .rows()
       .find((row) => row.fingerprint === input[0].fingerprint);
@@ -208,7 +274,7 @@ describe('AccessibilityFindingService', () => {
 
   it('clears stale findings for an authoritative engine-unavailable evaluation', async () => {
     const h = setup();
-    await h.service.replaceForScan('scan', candidates());
+    await h.service.replaceForScan('scan', candidates(), assessment());
     const unavailable = projectAccessibilityObservation({
       engine: 'axe-core',
       engineVersion: '4.13.0',
@@ -222,6 +288,7 @@ describe('AccessibilityFindingService', () => {
     await h.service.replaceForScan(
       'scan',
       mapAccessibilityFindings(unavailable),
+      unavailable,
     );
     expect(h.rows()).toEqual([]);
   });
@@ -229,12 +296,12 @@ describe('AccessibilityFindingService', () => {
   it('rolls back replacement when insertion fails', async () => {
     const h = setup();
     const input = candidates();
-    await h.service.replaceForScan('scan', input);
+    await h.service.replaceForScan('scan', input, assessment());
     const before = h.rows();
     h.createMany.mockRejectedValueOnce(new Error('write failed'));
-    await expect(h.service.replaceForScan('scan', [input[0]])).rejects.toThrow(
-      'write failed',
-    );
+    await expect(
+      h.service.replaceForScan('scan', [input[0]], assessment()),
+    ).rejects.toThrow('write failed');
     expect(h.rows()).toEqual(before);
   });
 
@@ -252,9 +319,9 @@ describe('AccessibilityFindingService', () => {
         });
       if (kind === 'fingerprint') input[0].fingerprint = canaries[2];
       if (kind === 'conflict') input[1].fingerprint = input[0].fingerprint;
-      await expect(h.service.replaceForScan('scan', input)).rejects.toThrow(
-        'Invalid accessibility finding candidate',
-      );
+      await expect(
+        h.service.replaceForScan('scan', input, assessment()),
+      ).rejects.toThrow('Invalid accessibility finding candidate');
       expect(h.transaction).not.toHaveBeenCalled();
     },
   );
@@ -266,6 +333,75 @@ function rawOutputIsNotAccepted(
   raw: AccessibilityObservation,
 ) {
   // @ts-expect-error Only mapper candidates, never raw engine observations.
-  return service.replaceForScan('scan', [raw]);
+  return service.replaceForScan('scan', [raw], assessment());
 }
 void rawOutputIsNotAccepted;
+
+describe('durable accessibility assessment', () => {
+  it('distinguishes legacy absence from COMPLETE zero and replaces rather than accumulating markers', async () => {
+    const h = setup();
+    expect(h.markers.size).toBe(0);
+    await h.service.replaceForScan('scan', [], assessment());
+    expect(h.markers.get('scan')).toMatchObject({
+      kind: 'ACCESSIBILITY_ASSESSMENT',
+      version: 1,
+      assessment: { version: 1, state: 'COMPLETE' },
+    });
+    expect(h.rows()).toEqual([]);
+    await h.service.replaceForScan('scan', candidates(), assessment('PARTIAL'));
+    expect(h.markers.size).toBe(1);
+    expect(h.markers.get('scan')).toMatchObject({
+      assessment: { state: 'PARTIAL' },
+    });
+    await h.service.replaceForScan('scan', [], assessment('UNAVAILABLE'));
+    expect(h.rows()).toEqual([]);
+    expect(h.markers.get('scan')).toMatchObject({
+      assessment: { state: 'UNAVAILABLE', reasons: ['ENGINE_TIMEOUT'] },
+    });
+    await h.service.replaceForScan('scan', [], null);
+    expect(h.markers.size).toBe(0);
+    expect(h.removeMarker).toHaveBeenLastCalledWith({
+      where: { scanId: 'scan', type: 'DOCUMENT_RESPONSE', sequence: 2 },
+    });
+  });
+  it.each(['marker', 'finding', 'commit'] as const)(
+    'rolls back both sides on %s failure',
+    async (stage) => {
+      const h = setup();
+      await h.service.replaceForScan('scan', candidates(), assessment());
+      const before = h.rows();
+      const marker = h.markers.get('scan');
+      if (stage === 'marker')
+        h.upsert.mockRejectedValueOnce(new Error('write failed'));
+      if (stage === 'finding')
+        h.createMany.mockRejectedValueOnce(new Error('write failed'));
+      if (stage === 'commit') h.failCommit();
+      await expect(
+        h.service.replaceForScan(
+          'scan',
+          [candidates()[0]],
+          assessment('PARTIAL'),
+        ),
+      ).rejects.toThrow();
+      expect(h.rows()).toEqual(before);
+      expect(h.markers.get('scan')).toEqual(marker);
+    },
+  );
+  it('strips canaries from marker and rejects invalid assessment before writes', async () => {
+    const h = setup();
+    const safe = assessment();
+    const secret = canaries.join(' ');
+    Object.assign(safe, { raw: secret, error: secret, url: secret });
+    Object.assign(safe.engine!, { stack: secret });
+    await h.service.replaceForScan('scan', candidates(), safe);
+    for (const canary of canaries)
+      expect(
+        JSON.stringify([h.upsert.mock.calls, h.createMany.mock.calls]),
+      ).not.toContain(canary);
+    Object.assign(safe, { reasons: [secret] });
+    await expect(h.service.replaceForScan('scan', [], safe)).rejects.toThrow(
+      'Invalid accessibility assessment',
+    );
+    expect(h.transaction).toHaveBeenCalledTimes(1);
+  });
+});

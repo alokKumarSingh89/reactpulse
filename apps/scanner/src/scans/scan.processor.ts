@@ -192,12 +192,15 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
 
       // Raw engine data stays in memory. Only projected facts reach mapping,
       // and only safe candidates cross the accessibility persistence boundary.
-      const accessibilityAssessment = projectAccessibilityObservation(
-        result.accessibility,
-      );
+      const accessibilityAssessment = result.accessibility
+        ? projectAccessibilityObservation(result.accessibility)
+        : null;
       await this.accessibilityFindingService.replaceForScan(
         scan.id,
-        mapAccessibilityFindings(accessibilityAssessment),
+        accessibilityAssessment
+          ? mapAccessibilityFindings(accessibilityAssessment)
+          : [],
+        accessibilityAssessment,
       );
 
       await this.database.client.scan.update({

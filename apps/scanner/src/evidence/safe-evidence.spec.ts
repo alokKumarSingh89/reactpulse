@@ -4,7 +4,8 @@ import type { DatabaseService } from '../database/database.service';
 import { projectSafeEvidence } from './safe-evidence';
 import { ScanEvidenceService } from './scan-evidence.service';
 
-const secret = 'authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_userinfo-secret-canary-61fa_fragment-secret-canary-44bd_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
+const secret =
+  'authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_userinfo-secret-canary-61fa_fragment-secret-canary-44bd_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
 function fixture() {
   const network = {
     sequence: 0,
@@ -100,7 +101,12 @@ describe('safe evidence persistence', () => {
       'scan-id',
       input as unknown as BrowserScanResult,
     );
-    expect(deleteMany).toHaveBeenCalledWith({ where: { scanId: 'scan-id' } });
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: {
+        scanId: 'scan-id',
+        NOT: { type: 'DOCUMENT_RESPONSE', sequence: 2 },
+      },
+    });
     expect(deleteMany).toHaveBeenCalledBefore(createMany);
     const rows = createMany.mock.calls[0][0].data as ReturnType<
       typeof projectSafeEvidence
