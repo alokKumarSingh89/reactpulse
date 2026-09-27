@@ -1,3 +1,4 @@
+import { AccessibilityFindingService } from './accessibility/accessibility-finding.service';
 import { AccessibilityObservationService } from './accessibility/accessibility-observation.service';
 import { SecurityFindingService } from './security/security-finding.service';
 import { SecurityObservationService } from './security/security-observation.service';
@@ -102,6 +103,7 @@ import { TargetValidatorService } from './security/target-validator.service';
 
     BrowserScannerService,
     AccessibilityObservationService,
+    AccessibilityFindingService,
     SecurityObservationService,
     SecurityFindingService,
 

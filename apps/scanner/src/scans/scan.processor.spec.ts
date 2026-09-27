@@ -1,3 +1,5 @@
+import type { AccessibilityFindingService } from '../accessibility/accessibility-finding.service';
+import type { AccessibilityObservation } from '../accessibility/accessibility-observation.service';
 import { describe, expect, it, vi } from 'vitest';
 import type { Job } from 'bullmq';
 import { SCAN_JOB, type ExecuteScanJob } from '@reactpulse/contracts';
@@ -24,6 +26,7 @@ function setup(attemptsMade = 0, security = true) {
   });
   const headers = observeSecurityHeaders([], 0, false);
   const result = {
+    accessibility: undefined as AccessibilityObservation | undefined,
     browser: { name: 'chromium', version: '1' },
     performance: { metrics: {} },
     network: {},
@@ -67,7 +70,8 @@ function setup(attemptsMade = 0, security = true) {
   const evidence = step('evidence'),
     performance = step('performance'),
     network = step('network'),
-    findings = step('security');
+    findings = step('security'),
+    accessibility = step('accessibility');
   const processor = new ScanProcessor(
     {
       client: { scan: { findUnique: vi.fn().mockResolvedValue(scan), update } },
@@ -83,6 +87,7 @@ function setup(attemptsMade = 0, security = true) {
     performance as unknown as PerformanceMetricService,
     network as unknown as NetworkMetricService,
     findings as unknown as SecurityFindingService,
+    accessibility as unknown as AccessibilityFindingService,
   );
   // Exercise the job handler without starting a Redis worker.
   const run = () =>
@@ -96,7 +101,7 @@ function setup(attemptsMade = 0, security = true) {
       attemptsMade,
       opts: { attempts: 2 },
     } as Job<ExecuteScanJob>);
-  return { run, order, update, findings };
+  return { run, order, update, findings, accessibility, result };
 }
 
 describe('security persistence orchestration', () => {
@@ -110,6 +115,7 @@ describe('security persistence orchestration', () => {
       'performance',
       'network',
       'security',
+      'accessibility',
       'COMPLETED',
     ]);
     expect(h.findings.replaceForScan).toHaveBeenCalledWith(
@@ -135,8 +141,12 @@ describe('security persistence orchestration', () => {
       h.findings.replaceForScan.mockRejectedValue(
         new Error('filesystem-secret-canary-02dc query-secret-canary-74ce'),
       );
-      await expect(h.run()).rejects.toThrow('ReactPulse could not complete the browser scan.');
-      expect(JSON.stringify(h.update.mock.calls)).not.toContain('secret-canary');
+      await expect(h.run()).rejects.toThrow(
+        'ReactPulse could not complete the browser scan.',
+      );
+      expect(JSON.stringify(h.update.mock.calls)).not.toContain(
+        'secret-canary',
+      );
       expect(h.order).not.toContain('COMPLETED');
       expect(h.update).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -153,4 +163,99 @@ describe('security persistence orchestration', () => {
     await h.run();
     expect(h.findings.replaceForScan).toHaveBeenCalledWith('scan', null);
   });
+});
+
+describe('accessibility persistence orchestration', () => {
+  it('projects raw results before mapping and persists before completion', async () => {
+    const h = setup();
+    h.result.accessibility = {
+      engine: 'axe-core',
+      engineVersion: '4.13.0',
+      rulesetVersion: 1,
+      scope: 'MAIN_DOCUMENT',
+      durationMs: 1,
+      excludedFrameCount: 0,
+      state: 'SUCCEEDED',
+      raw: {
+        violations: [
+          {
+            id: 'label',
+            impact: 'serious',
+            tags: [],
+            nodes: [{ html: 'private-canary', target: ['private-canary'] }],
+          },
+        ],
+        passes: [],
+        incomplete: [],
+        inapplicable: [],
+      },
+    } as unknown as AccessibilityObservation;
+    await h.run();
+    expect(h.accessibility.replaceForScan).toHaveBeenCalledWith('scan', [
+      expect.objectContaining({
+        category: 'ACCESSIBILITY',
+        ruleId: 'accessibility.axe-core.label',
+      }),
+    ]);
+    expect(
+      JSON.stringify(h.accessibility.replaceForScan.mock.calls),
+    ).not.toContain('private-canary');
+    expect(h.order.slice(-3)).toEqual([
+      'security',
+      'accessibility',
+      'COMPLETED',
+    ]);
+  });
+  it.each(['absent', 'unavailable'] as const)(
+    'authoritatively reconciles %s results to zero without failing other analyses',
+    async (state) => {
+      const h = setup();
+      if (state === 'unavailable')
+        h.result.accessibility = {
+          engine: 'axe-core',
+          engineVersion: '4.13.0',
+          rulesetVersion: 1,
+          scope: 'MAIN_DOCUMENT',
+          durationMs: 10,
+          excludedFrameCount: 0,
+          state: 'UNAVAILABLE',
+          reason: 'ENGINE_TIMEOUT',
+        };
+      await h.run();
+      expect(h.accessibility.replaceForScan).toHaveBeenCalledWith('scan', []);
+      expect(h.order).toEqual([
+        'RUNNING',
+        'browser',
+        'evidence',
+        'performance',
+        'network',
+        'security',
+        'accessibility',
+        'COMPLETED',
+      ]);
+    },
+  );
+  it.each([
+    [0, 'QUEUED'],
+    [1, 'FAILED'],
+  ] as const)(
+    'contains persistence errors on attempt %s',
+    async (attempt, status) => {
+      const h = setup(attempt);
+      h.accessibility.replaceForScan.mockRejectedValue(
+        new Error('accessibility-input-secret-7712'),
+      );
+      await expect(h.run()).rejects.toThrow(
+        'ReactPulse could not complete the browser scan.',
+      );
+      expect(h.order).not.toContain('COMPLETED');
+      expect(h.order).toContain('security');
+      expect(JSON.stringify(h.update.mock.calls)).not.toContain(
+        'accessibility-input-secret-7712',
+      );
+      expect(h.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status }) }),
+      );
+    },
+  );
 });
