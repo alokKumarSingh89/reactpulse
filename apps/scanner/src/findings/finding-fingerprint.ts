@@ -24,15 +24,23 @@ export function findingFingerprint(input: FindingFingerprintIdentity): string {
             ? 'main-document'
             : `document:${identity.subject.documentResponseOrdinal}:cookie:${identity.subject.cookieOrdinal}`,
         ]
-      : [
-          identity.category,
-          identity.engine,
-          identity.engineRuleId,
-          identity.ruleVersion,
-          identity.rulesetVersion,
-          identity.mappingVersion,
-          identity.profileId,
-          'main-document',
-        ];
+      : identity.category === 'PERFORMANCE'
+        ? [
+            identity.category,
+            identity.ruleId,
+            identity.ruleVersion,
+            identity.metric,
+            'main-document',
+          ]
+        : [
+            identity.category,
+            identity.engine,
+            identity.engineRuleId,
+            identity.ruleVersion,
+            identity.rulesetVersion,
+            identity.mappingVersion,
+            identity.profileId,
+            'main-document',
+          ];
   return createHash('sha256').update(JSON.stringify(tuple)).digest('hex');
 }

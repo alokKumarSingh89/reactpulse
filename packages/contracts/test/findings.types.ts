@@ -71,3 +71,13 @@ void [
   statusDefinition,
   unversioned,
 ];
+
+declare const performance: Extract<DeterministicFindingCandidate, { category: "PERFORMANCE" }>;
+const performanceEvidence: FindingEvidenceByCategory["PERFORMANCE"] = performance.evidence;
+// @ts-expect-error Performance cannot carry Security evidence.
+const invalidPerformance: DeterministicFindingCandidate = { ...performance, evidence: security.evidence };
+// @ts-expect-error Security cannot carry Performance evidence.
+const invalidSecurity: DeterministicFindingCandidate = { ...security, evidence: performance.evidence };
+// @ts-expect-error Accessibility cannot carry Performance evidence.
+const invalidAccessibility: DeterministicFindingCandidate = { ...accessibility, evidence: performance.evidence };
+void [performanceEvidence, invalidPerformance, invalidSecurity, invalidAccessibility];
