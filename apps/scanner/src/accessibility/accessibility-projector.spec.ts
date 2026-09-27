@@ -299,6 +299,21 @@ describe('accessibility safe projection', () => {
     assertSafe(result);
   });
 
+  it('never promotes malformed nodes into violations, including unsampled positions', () => {
+    const sparse: unknown[] = [];
+    sparse.length = 2;
+    for (const nodes of [
+      [null],
+      sparse,
+      [...Array.from({ length: 20 }, () => ({})), 42],
+    ]) {
+      const result = project(fixture(nodes));
+      expect(result.results.some((row) => row.ruleId === 'label')).toBe(false);
+      expect(result.reasons).toContain('INVALID_ENGINE_RESULT');
+      assertSafe(result);
+    }
+  });
+
   it('produces deterministic output without modifying raw inputs', () => {
     const raw = fixture();
     const before = JSON.stringify(raw);

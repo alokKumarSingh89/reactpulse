@@ -231,6 +231,20 @@ function project(
         continue;
       }
       const count = Math.min(row.nodes.length, LIMITS.occurrences);
+      // A malformed entry is not an observed element. Do not turn its array
+      // position into a reportable occurrence, even outside the sample window.
+      if (
+        row.nodes.slice(0, count).includes(undefined) ||
+        row.nodes
+          .slice(0, count)
+          .some(
+            (node) => !node || typeof node !== 'object' || Array.isArray(node),
+          )
+      ) {
+        reasons.add('INVALID_ENGINE_RESULT');
+        reasons.add('REFERENCE_UNAVAILABLE');
+        continue;
+      }
       const lowerBound = row.nodes.length > LIMITS.occurrences;
       const truncated = row.nodes.length > LIMITS.samplesPerRule;
       if (lowerBound || truncated) reasons.add('RESULT_LIMIT_EXCEEDED');

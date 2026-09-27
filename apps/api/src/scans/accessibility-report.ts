@@ -1,5 +1,6 @@
 import {
   ACCESSIBILITY_REPORT_SEVERITIES,
+  ACCESSIBILITY_LIMITS,
   projectAccessibilityMarker,
   projectAccessibilityReportFinding,
   type AccessibilityReport,
@@ -32,12 +33,31 @@ export function buildAccessibilityReport(
     coverage &&
     (coverage.state === 'COMPLETE' || coverage.state === 'PARTIAL')
   ) {
-    for (const raw of scan.findings) {
+    if (scan.findings.length > ACCESSIBILITY_LIMITS.rules)
+      limitations.push('FINDINGS_OMITTED');
+    for (const raw of scan.findings.slice(0, ACCESSIBILITY_LIMITS.rules)) {
       const finding = projectAccessibilityReportFinding(raw);
       if (finding) findings.push(finding);
       else if (!limitations.includes('FINDINGS_OMITTED'))
         limitations.push('FINDINGS_OMITTED');
     }
+  }
+  // Legacy/corrupt rows may have different fingerprints for the same rule.
+  // Do not select an arbitrary winner or emit a payload rejected by the BFF.
+  const duplicates = new Set(
+    findings
+      .filter(
+        (finding, index) =>
+          findings.findIndex((other) => other.ruleId === finding.ruleId) !==
+          index,
+      )
+      .map((f) => f.ruleId),
+  );
+  if (duplicates.size) {
+    if (!limitations.includes('FINDINGS_OMITTED'))
+      limitations.push('FINDINGS_OMITTED');
+    for (let i = findings.length - 1; i >= 0; i--)
+      if (duplicates.has(findings[i].ruleId)) findings.splice(i, 1);
   }
   const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   findings.sort(

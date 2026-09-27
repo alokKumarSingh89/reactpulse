@@ -225,3 +225,25 @@ describe('accessibility report', () => {
     });
   });
 });
+
+it('omits ambiguous duplicate rules instead of breaking the downstream report', () => {
+  const rows = [finding(), finding(), finding('image-alt')];
+  const result = buildAccessibilityReport(scan('COMPLETE', rows));
+  expect(result.assessment.state).toBe('COMPLETE');
+  expect(result.assessment.limitations).toContain('FINDINGS_OMITTED');
+  expect(result.findings.map((f) => f.evidence.ruleId)).toEqual(['image-alt']);
+  expect(buildAccessibilityReport(scan('COMPLETE', rows.reverse()))).toEqual(
+    result,
+  );
+});
+it('bounds corrupt large finding collections without changing marker state', () => {
+  const result = buildAccessibilityReport(
+    scan(
+      'COMPLETE',
+      Array.from({ length: 1000 }, () => finding()),
+    ),
+  );
+  expect(result.findings).toEqual([]);
+  expect(result.assessment.state).toBe('COMPLETE');
+  expect(result.assessment.limitations).toContain('FINDINGS_OMITTED');
+});

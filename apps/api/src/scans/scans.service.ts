@@ -1,3 +1,4 @@
+import { ACCESSIBILITY_LIMITS } from '@reactpulse/contracts';
 import { buildAccessibilityReport } from './accessibility-report';
 import {
   Injectable,
@@ -32,6 +33,8 @@ export class ScansService {
         },
         findings: {
           where: { category: 'ACCESSIBILITY' },
+          take: ACCESSIBILITY_LIMITS.rules + 1,
+          orderBy: [{ ruleId: 'asc' }, { fingerprint: 'asc' }],
           select: {
             category: true,
             ruleId: true,
