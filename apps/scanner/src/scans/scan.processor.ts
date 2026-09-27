@@ -1,3 +1,6 @@
+import { AccessibilityFindingService } from '../accessibility/accessibility-finding.service';
+import { mapAccessibilityFindings } from '../accessibility/accessibility-finding-mapper';
+import { projectAccessibilityObservation } from '../accessibility/accessibility-projector';
 import { SecurityFindingService } from '../security/security-finding.service';
 import { evaluateSecurityRules } from '../security/security-rules';
 import {
@@ -46,6 +49,8 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly networkMetricService: NetworkMetricService,
 
     private readonly securityFindingService: SecurityFindingService,
+
+    private readonly accessibilityFindingService: AccessibilityFindingService,
   ) {}
 
   onModuleInit(): void {
@@ -183,6 +188,19 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       await this.securityFindingService.replaceForScan(
         scan.id,
         securityEvaluation,
+      );
+
+      // Raw engine data stays in memory. Only projected facts reach mapping,
+      // and only safe candidates cross the accessibility persistence boundary.
+      const accessibilityAssessment = result.accessibility
+        ? projectAccessibilityObservation(result.accessibility)
+        : null;
+      await this.accessibilityFindingService.replaceForScan(
+        scan.id,
+        accessibilityAssessment
+          ? mapAccessibilityFindings(accessibilityAssessment)
+          : [],
+        accessibilityAssessment,
       );
 
       await this.database.client.scan.update({

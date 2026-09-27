@@ -48,7 +48,9 @@ export class NetworkCollectorService {
 
     let failureSequence = 0;
 
-    page.on('request', (request) => {
+    let stopped = false;
+    const onRequest = (request: Request) => {
+      if (stopped) return;
       if (requests.length >= this.maxRequests) {
         return;
       }
@@ -77,9 +79,10 @@ export class NetworkCollectorService {
 
         startedAtMs: performance.now(),
       });
-    });
+    };
 
-    page.on('response', (response) => {
+    const onResponse = (response: Response) => {
+      if (stopped) return;
       const task = this.captureResponse(
         response,
         targetUrl,
@@ -90,12 +93,14 @@ export class NetworkCollectorService {
 
       pending.add(task);
 
-      void task.finally(() => {
-        pending.delete(task);
-      });
-    });
+      void task.then(
+        () => pending.delete(task),
+        () => pending.delete(task),
+      );
+    };
 
-    page.on('requestfailed', (request) => {
+    const onFailure = (request: Request) => {
+      if (stopped) return;
       if (failures.length >= this.maxRequests) {
         return;
       }
@@ -125,16 +130,23 @@ export class NetworkCollectorService {
 
         failureText: sanitizeFailureText(request.failure()?.errorText ?? null),
       });
-    });
+    };
+    page.on('request', onRequest);
+    page.on('response', onResponse);
+    page.on('requestfailed', onFailure);
 
     return {
       getObservation: async () => {
+        stopped = true;
+        page.off('request', onRequest);
+        page.off('response', onResponse);
+        page.off('requestfailed', onFailure);
         await Promise.allSettled(Array.from(pending));
 
         return {
-          requests,
-          responses,
-          failures,
+          requests: requests.map((r) => ({ ...r })),
+          responses: responses.map((r) => ({ ...r })),
+          failures: failures.map((r) => ({ ...r })),
         };
       },
     };

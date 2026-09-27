@@ -1,3 +1,4 @@
+import { AccessibilityObservationService } from '../accessibility/accessibility-observation.service';
 import { SecurityObservationService } from '../security/security-observation.service';
 import { ConfigService } from '@nestjs/config';
 import { chromium, type Browser, type Route, type Response } from 'playwright';
@@ -59,15 +60,30 @@ function setup() {
   const attach = vi
     .spyOn(networkCollector, 'attach')
     .mockReturnValue({ getObservation });
+  const accessibilityObserver = new AccessibilityObservationService();
+  const accessibility = vi
+    .spyOn(accessibilityObserver, 'collect')
+    .mockResolvedValue({
+      state: 'UNAVAILABLE',
+      reason: 'ENGINE_UNAVAILABLE',
+      engine: 'axe-core',
+      engineVersion: '4.13.0',
+      rulesetVersion: 1,
+      scope: 'MAIN_DOCUMENT',
+      durationMs: 0,
+      excludedFrameCount: 0,
+    });
   const service = new BrowserScannerService(
     config,
     validator,
     performanceCollector,
     networkCollector,
     new SecurityObservationService(),
+    accessibilityObserver,
   );
   return {
     service,
+    accessibility,
     page,
     context,
     browser,
@@ -110,6 +126,7 @@ describe('BrowserScannerService', () => {
 
     await vi.advanceTimersByTimeAsync(DESKTOP_PROFILE.observationWindowMs - 1);
     expect(h.collect).not.toHaveBeenCalled();
+    expect(h.accessibility).not.toHaveBeenCalled();
     expect(h.getObservation).not.toHaveBeenCalled();
     const currentUrl = 'https://example.com/after-navigation';
     h.page.url.mockReturnValue(currentUrl);
@@ -120,6 +137,11 @@ describe('BrowserScannerService', () => {
     expect(h.validate).toHaveBeenCalledTimes(3);
     expect(h.validate).toHaveBeenCalledBefore(h.collect);
     expect(h.collect).toHaveBeenCalledBefore(h.getObservation);
+    expect(h.getObservation).toHaveBeenCalledBefore(h.accessibility);
+    expect(h.accessibility).toHaveBeenCalledExactlyOnceWith(h.page, currentUrl);
+    expect(h.page.goto).toHaveBeenCalledOnce();
+    expect(h.context.newPage).toHaveBeenCalledOnce();
+    expect(result.accessibility?.state).toBe('UNAVAILABLE');
     expect(result.navigation.finalUrl).toBe(currentUrl);
     // Controlled virtual time, not a wall-clock timing assertion.
     expect(result.navigation.durationMs).toBe(100);

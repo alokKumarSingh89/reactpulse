@@ -180,6 +180,9 @@ importers:
       '@reactpulse/database':
         specifier: workspace:*
         version: link:../../packages/database
+      axe-core:
+        specifier: 4.13.0
+        version: 4.13.0
       bullmq:
         specifier: ^6.3.8
         version: 6.3.8(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)

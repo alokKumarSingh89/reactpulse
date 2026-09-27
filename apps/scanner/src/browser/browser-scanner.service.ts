@@ -1,6 +1,12 @@
+import { AccessibilityObservationService } from '../accessibility/accessibility-observation.service';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { chromium, type Browser } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type ConsoleMessage,
+  type Response,
+} from 'playwright';
 
 import { ScanExecutionError, ScanFailureCode } from '../scans/scan-failure';
 import { TargetValidatorService } from '../security/target-validator.service';
@@ -23,6 +29,7 @@ export class BrowserScannerService {
     private readonly performanceCollector: PerformanceCollectorService,
     private readonly networkCollector: NetworkCollectorService,
     private readonly securityObserver: SecurityObservationService,
+    private readonly accessibilityObserver: AccessibilityObservationService,
   ) {}
 
   async scan(targetUrl: string): Promise<BrowserScanResult> {
@@ -80,7 +87,7 @@ export class BrowserScannerService {
 
       let documentResponse: DocumentResponseEvidence | null = null;
 
-      page.on('console', (message) => {
+      const onConsole = (message: ConsoleMessage) => {
         if (consoleMessages.length >= maxConsoleMessages) {
           return;
         }
@@ -89,10 +96,11 @@ export class BrowserScannerService {
           type: message.type(),
           text: this.sanitizeConsoleText(message.text()),
         });
-      });
+      };
+      page.on('console', onConsole);
 
       const securityCollection = this.securityObserver.attach(page, targetUrl);
-      page.on('response', (response) => {
+      const onDocument = (response: Response) => {
         const request = response.request();
         if (
           request.resourceType() !== 'document' ||
@@ -108,7 +116,8 @@ export class BrowserScannerService {
           statusText: '',
           headers: {},
         };
-      });
+      };
+      page.on('response', onDocument);
 
       /*
        * Validate every browser request.
@@ -176,6 +185,12 @@ export class BrowserScannerService {
       const browserVersion = browser.version();
 
       const userAgent = await page.evaluate(() => navigator.userAgent);
+      page.off('console', onConsole);
+      page.off('response', onDocument);
+      const accessibility = await this.accessibilityObserver.collect(
+        page,
+        finalUrl,
+      );
 
       return {
         browser: {
@@ -198,6 +213,7 @@ export class BrowserScannerService {
         consoleMessages,
 
         security,
+        accessibility,
         performance: performanceObservation,
         network,
       };

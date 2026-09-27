@@ -1,3 +1,5 @@
+import { ACCESSIBILITY_LIMITS } from '@reactpulse/contracts';
+import { buildAccessibilityReport } from './accessibility-report';
 import {
   Injectable,
   NotFoundException,
@@ -15,6 +17,38 @@ export class ScansService {
     private readonly database: DatabaseService,
     private readonly scanQueue: ScanQueueService,
   ) {}
+  async findAccessibilityForOrganization(
+    organizationId: string,
+    scanId: string,
+  ) {
+    const scan = await this.database.client.scan.findFirst({
+      where: { id: scanId, environment: { project: { organizationId } } },
+      select: {
+        id: true,
+        status: true,
+        completedAt: true,
+        evidence: {
+          where: { type: 'DOCUMENT_RESPONSE', sequence: 2 },
+          select: { data: true },
+        },
+        findings: {
+          where: { category: 'ACCESSIBILITY' },
+          take: ACCESSIBILITY_LIMITS.rules + 1,
+          orderBy: [{ ruleId: 'asc' }, { fingerprint: 'asc' }],
+          select: {
+            category: true,
+            ruleId: true,
+            severity: true,
+            confidence: true,
+            status: true,
+            evidence: true,
+          },
+        },
+      },
+    });
+    if (!scan) throw new NotFoundException('Scan not found');
+    return buildAccessibilityReport(scan);
+  }
   async findSecurityForOrganization(organizationId: string, scanId: string) {
     const scan = await this.database.client.scan.findFirst({
       where: { id: scanId, environment: { project: { organizationId } } },

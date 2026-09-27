@@ -346,14 +346,14 @@ export default async function OverviewPage({
         >
           <p className="text-xs text-slate-500">Inclusive experiences</p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-600">
-            Coming soon
+            View observations
           </p>
           <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">
-            Accessibility checks are not enabled. This application has not been
-            assessed for accessibility.
+            Open the accessibility report for automated findings and recorded
+            coverage from the selected scan.
           </p>
           <p className="mt-5 text-xs font-medium text-slate-500">
-            Awaiting automated observations
+            Automated checks have limited coverage
           </p>
         </AnalyticsSurface>
       </div>

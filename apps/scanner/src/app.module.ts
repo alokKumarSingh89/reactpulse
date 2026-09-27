@@ -1,3 +1,5 @@
+import { AccessibilityFindingService } from './accessibility/accessibility-finding.service';
+import { AccessibilityObservationService } from './accessibility/accessibility-observation.service';
 import { SecurityFindingService } from './security/security-finding.service';
 import { SecurityObservationService } from './security/security-observation.service';
 import { Module } from '@nestjs/common';
@@ -100,6 +102,8 @@ import { TargetValidatorService } from './security/target-validator.service';
     NetworkMetricService,
 
     BrowserScannerService,
+    AccessibilityObservationService,
+    AccessibilityFindingService,
     SecurityObservationService,
     SecurityFindingService,
 
