@@ -1,5 +1,3 @@
-import { Activity } from "lucide-react";
-
 import { notFound, redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/features/auth/get-current-user";
@@ -54,36 +52,29 @@ export default async function ScansPage({ searchParams }: ScansPageProps) {
     }
   }
 
+  const completed = scans
+    .filter((scan) => scan.status === "COMPLETED")
+    .slice(0, 12);
+  const details = await Promise.allSettled(
+    completed.map((scan) => getOrganizationScan(organizationId, scan.id)),
+  );
+  const metrics = Object.fromEntries(
+    details.flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? [[completed[index].id, result.value.metrics]]
+        : [],
+    ),
+  );
+
   return (
     <div className="space-y-6">
-      <PageHeader />
-
       <ScansDashboard
-        key={selectedScan?.id ?? "scan-list"}
+        key={`${selectedScan?.id ?? "scan-list"}:${scans.map((scan) => `${scan.id}:${scan.status}`).join(",")}`}
         organizationId={organizationId}
         initialScans={scans}
         initialSelectedScan={selectedScan}
+        initialMetrics={metrics}
       />
-    </div>
-  );
-}
-
-function PageHeader() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-        <Activity size={19} />
-      </div>
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-          Scans
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Browser analysis across your React applications.
-        </p>
-      </div>
     </div>
   );
 }

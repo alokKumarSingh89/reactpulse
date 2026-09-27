@@ -7,7 +7,25 @@ interface ScanStatusBadgeProps {
 }
 
 export function ScanStatusBadge({ status }: ScanStatusBadgeProps) {
-  return <Badge>{formatStatus(status)}</Badge>;
+  return (
+    <Badge
+      variant={
+        status === "COMPLETED"
+          ? "success"
+          : status === "FAILED"
+            ? "danger"
+            : ["RUNNING", "QUEUED", "PENDING"].includes(status)
+              ? "warning"
+              : "neutral"
+      }
+    >
+      <span
+        aria-hidden="true"
+        className="mr-1.5 size-1.5 rounded-full bg-current"
+      />
+      {formatStatus(status)}
+    </Badge>
+  );
 }
 
 function formatStatus(status: ScanStatus) {

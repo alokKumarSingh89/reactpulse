@@ -1,73 +1,59 @@
-import { Bell, ChevronDown } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-
+import { ChevronDown } from "lucide-react";
+import { Suspense } from "react";
 import type { CurrentUser } from "@/features/auth/auth.types";
 import { LogoutButton } from "@/features/auth/logout-button";
+import { getOverviewContext } from "@/features/overview/overview-data";
+import { ContextSelectors } from "./context-selectors";
 
-interface AppHeaderProps {
-  user: CurrentUser;
-}
-
-export function AppHeader({ user }: AppHeaderProps) {
+export async function AppHeader({ user }: { user: CurrentUser }) {
   const membership = user.memberships[0];
-
-  const initials = getInitials(user.name ?? user.email);
-
+  const context = membership
+    ? await getOverviewContext(membership.organization.id)
+    : null;
+  const initials = (user.name ?? user.email).trim().slice(0, 2).toUpperCase();
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
-      <div>
-        <div className="text-xs text-slate-500">Organization</div>
-
-        <button className="flex items-center gap-1 text-sm font-medium text-slate-900">
-          {membership?.organization.name ?? "No organization"}
-
-          <ChevronDown size={15} />
-        </button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" aria-label="Notifications">
-          <Bell size={18} />
-        </Button>
-
-        <div className="h-7 w-px bg-slate-200" />
-
-        <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
-          <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+    <header className="flex min-h-16 min-w-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+      {context && membership ? (
+        <Suspense
+          fallback={
+            <span className="text-xs text-slate-500">Loading context…</span>
+          }
+        >
+          <ContextSelectors
+            organizationId={membership.organization.id}
+            projects={context.projects}
+            scans={context.scans}
+            unavailable={context.projectsUnavailable}
+          />
+        </Suspense>
+      ) : (
+        <span className="text-sm text-slate-500">No organization</span>
+      )}
+      <details className="relative shrink-0">
+        <summary
+          className="flex cursor-pointer list-none items-center gap-2 rounded-md p-1 text-sm"
+          aria-label="Account menu"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
             {initials}
-          </div>
-
-          <div className="text-left">
-            <div className="text-sm font-medium text-slate-900">
-              {user.name ?? user.email}
-            </div>
-
-            <div className="text-xs text-slate-500">
-              {membership?.role ?? "Member"}
-            </div>
-            <div className="text-xs">
-              <LogoutButton />
-            </div>
+          </span>
+          <span className="hidden max-w-32 truncate text-slate-700 xl:block">
+            {user.name ?? user.email}
+          </span>
+          <ChevronDown size={14} aria-hidden="true" />
+        </summary>
+        <div className="absolute right-0 z-30 mt-3 w-60 max-w-[80vw] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="break-words text-sm font-medium">
+            {user.name ?? user.email}
+          </p>
+          <p className="mt-1 break-words text-xs text-slate-500">
+            {membership?.organization.name} · {membership?.role ?? "Member"}
+          </p>
+          <div className="mt-3 border-t border-slate-100 pt-2">
+            <LogoutButton />
           </div>
         </div>
-      </div>
+      </details>
     </header>
   );
-}
-
-function getInitials(value: string): string {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    return "U";
-  }
-
-  const parts = normalized.split(/\s+/);
-
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
-  return normalized.slice(0, 2).toUpperCase();
 }
