@@ -344,3 +344,36 @@ describe('safe header facts', () => {
     );
   });
 });
+
+it('keeps Expires commas and quoted cookie values private across multiple headers', () => {
+  const value = 'cookie-secret-canary-8ab2';
+  const result = observeSecurityHeaders(
+    [
+      {
+        name: 'Set-Cookie',
+        value: `name="${value}"; Expires=Wed, 21 Oct 2030 07:28:00 GMT; SameSite=None; Secure; HttpOnly`,
+      },
+      { name: 'Set-Cookie', value: `other=${value}; SameSite=Lax` },
+      { name: 'Authorization', value: 'authorization-secret-canary-9f31' },
+      { name: 'X-Custom-Secret', value },
+      { name: 'Server', value },
+    ],
+    0,
+    false,
+  );
+  expect(result.cookies).toMatchObject({
+    state: 'OBSERVED',
+    facts: [
+      { ordinal: 0, secure: true, httpOnly: true, sameSite: 'NONE' },
+      { ordinal: 1, secure: false, httpOnly: false, sameSite: 'LAX' },
+    ],
+  });
+  expect(JSON.stringify(result)).not.toContain('secret-canary');
+  expect(
+    observeSecurityHeaders(
+      [{ name: 'Set-Cookie', value: 'malformed' }],
+      0,
+      false,
+    ).cookies.state,
+  ).toBe('UNKNOWN');
+});

@@ -4,7 +4,7 @@ import type { DatabaseService } from '../database/database.service';
 import { projectSafeEvidence } from './safe-evidence';
 import { ScanEvidenceService } from './scan-evidence.service';
 
-const secret = 'SECRET_CANARY_xyz';
+const secret = 'authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_userinfo-secret-canary-61fa_fragment-secret-canary-44bd_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
 function fixture() {
   const network = {
     sequence: 0,

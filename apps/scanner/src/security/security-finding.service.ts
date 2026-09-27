@@ -1,3 +1,4 @@
+import { SECURITY_FINDING_PRESENTATION as templates } from '@reactpulse/contracts';
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@reactpulse/database';
@@ -6,8 +7,6 @@ import {
   SECURITY_RULE_POLICY,
   SECURITY_RULE_VERSION,
   type SecurityRuleEvaluation,
-  type SecurityRuleId,
-  type SecurityRuleReason,
   type SecurityRuleResult,
 } from './security-rules';
 
@@ -15,134 +14,6 @@ import {
 // reserved for passive-security coverage, even when no document was observable.
 // This marker is not a Finding and must survive a zero-finding reconciliation.
 const ASSESSMENT_SEQUENCE = 1;
-type Template = readonly [
-  SecurityRuleReason,
-  SecurityRuleResult['evidence']['source'],
-  string,
-  string,
-  string,
-];
-const templates = {
-  'security.transport.insecure-final': [
-    'HTTP_FINAL_OBSERVED',
-    'navigation',
-    'Final document used HTTP',
-    'The observed final document used unencrypted HTTP transport.',
-    'Serve the application over HTTPS and review entry-point redirects.',
-  ],
-  'security.transport.downgrade': [
-    'DOWNGRADE_OBSERVED',
-    'navigation',
-    'HTTPS to HTTP transition observed',
-    'The observed navigation included a transition from HTTPS to HTTP.',
-    'Review navigation destinations and retain HTTPS throughout the navigation chain.',
-  ],
-  'security.transport.insecure-entry': [
-    'HTTP_ENTRY_UPGRADED',
-    'navigation',
-    'HTTP entry upgraded to HTTPS',
-    'Navigation began with HTTP before reaching an HTTPS final document.',
-    'Use HTTPS entry URLs in links and configuration.',
-  ],
-  'security.csp.missing': [
-    'ENFORCED_CSP_ABSENT',
-    'csp',
-    'Enforced CSP not observed',
-    'No enforced Content-Security-Policy header was observed on the main document.',
-    'Design and test an application-specific CSP before enforcing it.',
-  ],
-  'security.csp.report-only': [
-    'REPORT_ONLY_WITHOUT_ENFORCEMENT',
-    'csp',
-    'CSP is report-only',
-    'A report-only CSP was observed without an enforced CSP. Report-only policies do not enforce restrictions.',
-    'Review policy reports and test an appropriate enforced policy.',
-  ],
-  'security.hsts.missing': [
-    'HSTS_ABSENT',
-    'hsts',
-    'HSTS not observed on HTTPS',
-    'The HTTPS main document did not include an observed HSTS header.',
-    'Review HTTPS deployment readiness before configuring HSTS.',
-  ],
-  'security.hsts.invalid': [
-    'HSTS_INVALID',
-    'hsts',
-    'HSTS could not be parsed',
-    'The passive parser classified the observed HSTS header as invalid.',
-    'Review HSTS syntax and provide a valid nonnegative max-age directive.',
-  ],
-  'security.hsts.disabled': [
-    'HSTS_DISABLED',
-    'hsts',
-    'HSTS max-age is zero',
-    'The observed HSTS policy had max-age zero, which removes the stored policy.',
-    'Confirm whether disabling HSTS is intentional for this deployment.',
-  ],
-  'security.content-type-options.missing': [
-    'NOSNIFF_ABSENT',
-    'contentTypeOptions',
-    'Content type options header not observed',
-    'No X-Content-Type-Options header was observed on the main document.',
-    'Consider nosniff alongside accurate response Content-Type values.',
-  ],
-  'security.referrer-policy.missing': [
-    'REFERRER_HEADER_ABSENT_BROWSER_DEFAULTS_APPLY',
-    'referrerPolicy',
-    'Explicit Referrer-Policy not observed',
-    'No Referrer-Policy header was observed. Browser defaults still apply.',
-    'Choose an explicit referrer policy appropriate to the application.',
-  ],
-  'security.referrer-policy.permissive': [
-    'PERMISSIVE_REFERRER_POLICY',
-    'referrerPolicy',
-    'Permissive referrer policy observed',
-    'The normalized referrer policy matches the product policy for permissive referrer disclosure.',
-    'Review referrer requirements and consider a more restrictive policy.',
-  ],
-  'security.permissions-policy.missing': [
-    'PERMISSIONS_HEADER_ABSENT_DEFAULTS_APPLY',
-    'permissionsPolicy',
-    'Explicit Permissions-Policy not observed',
-    'No Permissions-Policy header was observed. This does not imply that every browser feature is enabled.',
-    'Review feature requirements and explicitly restrict capabilities where appropriate.',
-  ],
-  'security.frame-protection.missing': [
-    'NO_RECOGNIZED_FRAME_RESTRICTION',
-    'framing',
-    'Recognized framing restriction not observed',
-    'Neither a recognized enforced frame-ancestors restriction nor recognized X-Frame-Options protection was observed.',
-    'Review embedding requirements and configure an appropriate framing policy.',
-  ],
-  'security.cookie.secure-missing': [
-    'COOKIE_SECURE_ABSENT',
-    'cookies',
-    'Cookie Secure attribute not observed',
-    'An observed response cookie lacked the Secure attribute.',
-    'Review whether the cookie should be restricted to HTTPS transport.',
-  ],
-  'security.cookie.httponly-missing': [
-    'COOKIE_HTTPONLY_ABSENT_INTENT_UNKNOWN',
-    'cookies',
-    'Cookie HttpOnly attribute not observed',
-    'An observed response cookie lacked HttpOnly. Script access may be intentional; the cookie purpose is unknown.',
-    'Use HttpOnly when application behavior does not require script access.',
-  ],
-  'security.cookie.samesite-missing': [
-    'COOKIE_SAMESITE_ABSENT_DEFAULTS_APPLY',
-    'cookies',
-    'Explicit cookie SameSite attribute not observed',
-    'An observed response cookie lacked an explicit SameSite attribute. Browser defaults may apply.',
-    'Choose SameSite explicitly according to cross-site application requirements.',
-  ],
-  'security.cookie.samesite-none-without-secure': [
-    'COOKIE_SAMESITE_NONE_WITHOUT_SECURE',
-    'cookies',
-    'SameSite=None observed without Secure',
-    'An observed response cookie specified SameSite=None without Secure.',
-    'Review cookie requirements and pair SameSite=None with Secure where needed.',
-  ],
-} as const satisfies Partial<Record<SecurityRuleId, Template>>;
 const reasons = [
   'MAIN_DOCUMENT_UNAVAILABLE',
   'HEADERS_UNAVAILABLE',

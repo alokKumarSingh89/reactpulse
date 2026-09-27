@@ -1,3 +1,4 @@
+import { projectSecurityReport } from "@reactpulse/contracts";
 import { NextResponse } from "next/server";
 
 import type { CurrentUser } from "@/features/auth/auth.types";
@@ -27,7 +28,9 @@ export async function GET(request: Request) {
   if (
     values.length !== 1 ||
     !scanId ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(scanId)
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      scanId,
+    )
   ) {
     return failure(400);
   }
@@ -43,24 +46,9 @@ export async function GET(request: Request) {
       `/organizations/${encodeURIComponent(membership.organization.id)}/scans/${encodeURIComponent(scanId)}/security`,
     );
 
-    // The API owns the versioned safe projection. No security interpretation,
-    // raw evidence loading or assessment-state normalization belongs here.
-    if (
-      !report || typeof report !== "object" ||
-      !("scan" in report) || !("assessment" in report) ||
-      !("observations" in report) || !("findings" in report) ||
-      !Array.isArray(report.findings) ||
-      !report.assessment || typeof report.assessment !== "object" ||
-      !("state" in report.assessment) ||
-      !["COMPLETE", "PARTIAL", "UNAVAILABLE", "NOT_ASSESSED"].includes(String(report.assessment.state))
-    ) return failure(502);
-
-    return NextResponse.json({
-      scan: report.scan,
-      assessment: report.assessment,
-      observations: report.observations,
-      findings: report.findings,
-    }, {
+    const safeReport = projectSecurityReport(report);
+    if (!safeReport || safeReport.scan.id !== scanId) return failure(502);
+    return NextResponse.json(safeReport, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {

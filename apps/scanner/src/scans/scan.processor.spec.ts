@@ -133,9 +133,10 @@ describe('security persistence orchestration', () => {
     async (attempt, status) => {
       const h = setup(attempt);
       h.findings.replaceForScan.mockRejectedValue(
-        new Error('persistence failed'),
+        new Error('filesystem-secret-canary-02dc query-secret-canary-74ce'),
       );
-      await expect(h.run()).rejects.toThrow('persistence failed');
+      await expect(h.run()).rejects.toThrow('ReactPulse could not complete the browser scan.');
+      expect(JSON.stringify(h.update.mock.calls)).not.toContain('secret-canary');
       expect(h.order).not.toContain('COMPLETED');
       expect(h.update).toHaveBeenLastCalledWith(
         expect.objectContaining({

@@ -110,7 +110,7 @@ describe('SecurityFindingService', () => {
   it('projects fixed content, existing enums, safe references and no secret canaries', async () => {
     const h = setup();
     const input = evaluation([result(), result(true)]);
-    const secret = 'SECRET_CANARY';
+    const secret = 'authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
     Object.assign(input, { headers: { authorization: secret }, url: secret });
     Object.assign(input.coverage, {
       extra: secret,

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  projectSecurityReport,
+  type SecurityReportResponse,
+} from "@reactpulse/contracts";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,35 +52,7 @@ const limitations: Record<string, string> = {
   OBSERVATION_LIMIT_REACHED: "An observation limit was reached.",
   COLLECTION_FAILED: "Some observations could not be collected.",
 };
-type Finding = {
-  ruleId: string;
-  title: string;
-  description: string;
-  recommendation: string;
-  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
-  confidence: string;
-  evidence: {
-    source: string;
-    subject: {
-      kind: string;
-      documentResponseOrdinal?: number;
-      cookieOrdinal?: number;
-    };
-  };
-};
-export interface SecurityReportData {
-  assessment: {
-    state: keyof typeof states;
-    coverage: null | {
-      version: number;
-      rulesetVersion: number;
-      state: string;
-      reasons: string[];
-    };
-    limitations: string[];
-  };
-  findings: Finding[];
-}
+export type SecurityReportData = SecurityReportResponse;
 const surface = "rounded-lg border border-slate-200 bg-white";
 const focus =
   "rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600";
@@ -114,13 +90,8 @@ export function SecurityReport({ scanId }: { scanId: string }) {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error();
-        const report = (await response.json()) as SecurityReportData;
-        if (
-          !report.assessment ||
-          !Object.hasOwn(states, report.assessment.state) ||
-          !Array.isArray(report.findings)
-        )
-          throw new Error();
+        const report = projectSecurityReport(await response.json());
+        if (!report || report.scan.id !== scanId) throw new Error();
         if (!controller.signal.aborted) setResult({ report });
       })
       .catch(() => {
