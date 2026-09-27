@@ -1,5 +1,6 @@
+import { SecurityObservationService } from '../security/security-observation.service';
 import { ConfigService } from '@nestjs/config';
-import { chromium, type Browser, type Route } from 'playwright';
+import { chromium, type Browser, type Route, type Response } from 'playwright';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NetworkCollectorService } from '../network/network-collector.service';
@@ -12,8 +13,11 @@ import { DESKTOP_PROFILE } from './scan-profile';
 const target = 'https://example.com/';
 
 function setup() {
+  const mainFrame = {};
   const page = {
     on: vi.fn(),
+    off: vi.fn(),
+    mainFrame: () => mainFrame,
     route: vi.fn().mockResolvedValue(undefined),
     goto: vi.fn(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 100));
@@ -60,6 +64,7 @@ function setup() {
     validator,
     performanceCollector,
     networkCollector,
+    new SecurityObservationService(),
   );
   return {
     service,
@@ -120,6 +125,48 @@ describe('BrowserScannerService', () => {
     expect(result.navigation.durationMs).toBe(100);
     expect(h.context.close).toHaveBeenCalledOnce();
     expect(h.browser.close).toHaveBeenCalledOnce();
+  });
+
+  it('keeps iframe responses out of document evidence and returns safe main-document observations', async () => {
+    const h = setup();
+    const promise = h.service.scan(target);
+    await vi.advanceTimersByTimeAsync(100);
+    const emit = (frame: unknown, url: string) => {
+      const response = {
+        request: () => ({
+          resourceType: () => 'document',
+          isNavigationRequest: () => true,
+          frame: () => frame,
+          redirectedFrom: () => null,
+        }),
+        url: () => url,
+        status: () => 200,
+        headersArray: async () => [
+          { name: 'Set-Cookie', value: 'SECRET_COOKIE=SECRET_VALUE; Secure' },
+        ],
+      } as unknown as Response;
+      for (const [event, handler] of h.page.on.mock.calls) {
+        if (event === 'response')
+          (handler as (response: Response) => void)(response);
+      }
+    };
+    emit(h.page.mainFrame(), target);
+    emit({}, 'https://iframe.example/');
+    await vi.runAllTimersAsync();
+    const result = await promise;
+    expect(result.documentResponse).toEqual({
+      url: target,
+      status: 200,
+      statusText: '',
+      headers: {},
+    });
+    expect(result.security?.mainDocumentResponses).toHaveLength(1);
+    expect(result.security?.assessment.cookies).toMatchObject({
+      state: 'OBSERVED',
+      facts: [{ secure: true }],
+    });
+    expect(JSON.stringify(result.security)).not.toContain('SECRET');
+    expect(h.attach).toHaveBeenCalledOnce();
   });
 
   it.each([

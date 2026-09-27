@@ -12,6 +12,7 @@ import type {
 import { PerformanceCollectorService } from '../performance/performance-collector.service';
 import { NetworkCollectorService } from '../network/network-collector.service';
 import { PERFORMANCE_INIT_SCRIPT } from '../performance/performance-init-script';
+import { SecurityObservationService } from '../security/security-observation.service';
 import { DESKTOP_PROFILE } from './scan-profile';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class BrowserScannerService {
     private readonly targetValidator: TargetValidatorService,
     private readonly performanceCollector: PerformanceCollectorService,
     private readonly networkCollector: NetworkCollectorService,
+    private readonly securityObserver: SecurityObservationService,
   ) {}
 
   async scan(targetUrl: string): Promise<BrowserScanResult> {
@@ -89,16 +91,22 @@ export class BrowserScannerService {
         });
       });
 
-      page.on('response', async (response) => {
-        if (response.request().resourceType() !== 'document') {
+      const securityCollection = this.securityObserver.attach(page, targetUrl);
+      page.on('response', (response) => {
+        const request = response.request();
+        if (
+          request.resourceType() !== 'document' ||
+          !request.isNavigationRequest() ||
+          request.frame() !== page.mainFrame()
+        ) {
           return;
         }
 
         documentResponse = {
           url: response.url(),
           status: response.status(),
-          statusText: response.statusText(),
-          headers: this.sanitizeHeaders(await response.allHeaders()),
+          statusText: '',
+          headers: {},
         };
       });
 
@@ -164,6 +172,7 @@ export class BrowserScannerService {
       const performanceObservation =
         await this.performanceCollector.collect(page);
       const network = await networkCollection.getObservation();
+      const security = await securityCollection.getObservation(finalUrl);
       const browserVersion = browser.version();
 
       const userAgent = await page.evaluate(() => navigator.userAgent);
@@ -188,29 +197,13 @@ export class BrowserScannerService {
 
         consoleMessages,
 
+        security,
         performance: performanceObservation,
         network,
       };
     } finally {
       await context.close().catch(() => undefined);
     }
-  }
-
-  private sanitizeHeaders(
-    headers: Record<string, string>,
-  ): Record<string, string> {
-    const blocked = new Set([
-      'authorization',
-      'proxy-authorization',
-      'cookie',
-      'set-cookie',
-    ]);
-
-    return Object.fromEntries(
-      Object.entries(headers).filter(
-        ([key]) => !blocked.has(key.toLowerCase()),
-      ),
-    );
   }
 
   private sanitizeConsoleText(value: string): string {

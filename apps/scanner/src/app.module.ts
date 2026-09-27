@@ -1,3 +1,4 @@
+import { SecurityObservationService } from './security/security-observation.service';
 import { Module } from '@nestjs/common';
 
 import { ConfigModule } from '@nestjs/config';
@@ -98,6 +99,7 @@ import { TargetValidatorService } from './security/target-validator.service';
     NetworkMetricService,
 
     BrowserScannerService,
+    SecurityObservationService,
 
     ScanEvidenceService,
 
