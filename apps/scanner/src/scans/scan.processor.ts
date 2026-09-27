@@ -1,3 +1,5 @@
+import { SecurityFindingService } from '../security/security-finding.service';
+import { evaluateSecurityRules } from '../security/security-rules';
 import {
   Injectable,
   Logger,
@@ -42,6 +44,8 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly performanceMetricService: PerformanceMetricService,
 
     private readonly networkMetricService: NetworkMetricService,
+
+    private readonly securityFindingService: SecurityFindingService,
   ) {}
 
   onModuleInit(): void {
@@ -143,7 +147,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       const result = await this.browserScanner.scan(scan.targetUrl);
 
       /*
-       * Persist raw evidence first.
+       * Persist explicitly projected evidence first.
        *
        * This includes:
        *
@@ -165,6 +169,14 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
       );
 
       await this.networkMetricService.replaceForScan(scan.id, result.network);
+
+      const securityEvaluation = result.security
+        ? evaluateSecurityRules(result.security.assessment)
+        : null;
+      await this.securityFindingService.replaceForScan(
+        scan.id,
+        securityEvaluation,
+      );
 
       await this.database.client.scan.update({
         where: {
