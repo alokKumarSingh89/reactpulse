@@ -179,13 +179,19 @@ function db() {
               },
             },
             finding: {
+              findMany: async ({ where }) => rows.filter(r => r.scanId === where.scanId && r.category === where.category),
+              updateMany: async ({ where, data }) => {
+                checkpoint("update");
+                writes.push(data);
+                rows = rows.map(r => r.scanId === where.scanId && r.category === where.category && r.fingerprint === where.fingerprint ? { ...r, ...data } : r);
+              },
               deleteMany: async ({ where }) => {
                 checkpoint("delete");
                 assert.equal(where.category, "ACCESSIBILITY");
                 assert.equal(where.scanId, id);
                 rows = rows.filter(
                   (r) =>
-                    r.scanId !== where.scanId || r.category !== where.category,
+                    r.scanId !== where.scanId || r.category !== where.category || where.fingerprint.notIn.includes(r.fingerprint),
                 );
               },
               createMany: async ({ data }) => {
@@ -321,7 +327,7 @@ test("full pipeline preserves zero, partial, unavailable and legacy states indep
   await h.service.replaceForScan(id, [], null);
   assert.equal(h.api().assessment.state, "NOT_ASSESSED");
 });
-for (const stage of ["marker", "delete", "create", "commit"])
+for (const stage of ["marker", "delete", "create", "update", "commit"])
   test(
     "cross-layer reconciliation rolls back " + stage + " failure",
     async () => {
@@ -330,7 +336,7 @@ for (const stage of ["marker", "delete", "create", "commit"])
       await h.service.replaceForScan(id, map(initial), initial);
       const saved = JSON.stringify(h.state());
       h.fail(stage);
-      const next = raw(["label"], 2);
+      const next = raw(stage === "create" ? ["document-title"] : ["label"], 2);
       await assert.rejects(h.service.replaceForScan(id, map(next), next));
       assert.equal(JSON.stringify(h.state()), saved);
       assert.equal(h.api().assessment.state, "COMPLETE");
