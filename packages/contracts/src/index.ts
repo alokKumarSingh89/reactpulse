@@ -11,3 +11,5 @@ export * from "./findings";
 export * from "./performance-findings";
 
 export * from "./network-findings";
+
+export * from "./findings-api";

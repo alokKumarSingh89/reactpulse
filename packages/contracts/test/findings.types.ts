@@ -89,3 +89,12 @@ const invalidNetwork: DeterministicFindingCandidate = { ...network, evidence: pe
 // @ts-expect-error Security cannot carry network evidence.
 const networkInSecurity: DeterministicFindingCandidate = { ...security, evidence: network.evidence };
 void [networkEvidence, invalidNetwork, networkInSecurity];
+
+import type { PublicFinding } from '../src/findings-api';
+declare const publicSecurity: Extract<PublicFinding, { category: 'SECURITY' }>;
+declare const publicNetwork: Extract<PublicFinding, { category: 'NETWORK' }>;
+// @ts-expect-error Public category and evidence must remain paired.
+const wrongPublicFinding: PublicFinding = { ...publicSecurity, evidence: publicNetwork.evidence };
+// @ts-expect-error Internal fingerprint identity is not public.
+publicSecurity.fingerprintIdentity;
+void wrongPublicFinding;

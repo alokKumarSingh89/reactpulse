@@ -1,3 +1,4 @@
+import { FindingsModule } from './findings/findings.module';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from '@nestjs/config';
@@ -57,6 +58,7 @@ import { ScansModule } from './scans/scans.module';
     UrlPolicyModule,
     QueueModule,
     ScansModule,
+    FindingsModule,
   ],
   controllers: [],
   providers: [
