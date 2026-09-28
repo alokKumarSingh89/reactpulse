@@ -1,3 +1,4 @@
+import { reconcileFindings } from '../findings/reconcile-findings';
 import { SECURITY_FINDING_PRESENTATION as templates } from '@reactpulse/contracts';
 import { Injectable } from '@nestjs/common';
 import { findingFingerprint } from '../findings/finding-fingerprint';
@@ -14,7 +15,7 @@ import {
 // DOCUMENT_RESPONSE sequence 0 is the existing document summary. Sequence 1 is
 // reserved for passive-security coverage, even when no document was observable.
 // This marker is not a Finding and must survive a zero-finding reconciliation.
-const ASSESSMENT_SEQUENCE = 1;
+export const SECURITY_ASSESSMENT_SEQUENCE = 1;
 const reasons = [
   'MAIN_DOCUMENT_UNAVAILABLE',
   'HEADERS_UNAVAILABLE',
@@ -126,7 +127,11 @@ export class SecurityFindingService {
     const rows = new Map<string, Prisma.FindingCreateManyInput>();
     for (const result of evaluation?.results ?? []) {
       const row = projectFinding(scanId, result);
-      if (row) rows.set(row.fingerprint, row);
+      if (row) {
+        const previous = rows.get(row.fingerprint);
+        if (previous && JSON.stringify(previous) !== JSON.stringify(row)) throw new Error('Conflicting security finding candidates');
+        rows.set(row.fingerprint, row);
+      }
     }
     const marker = evaluation
       ? {
@@ -142,21 +147,20 @@ export class SecurityFindingService {
         }
       : null;
     await this.database.client.$transaction(async (tx) => {
-      await tx.finding.deleteMany({ where: { scanId, category: 'SECURITY' } });
-      if (rows.size) await tx.finding.createMany({ data: [...rows.values()] });
+      await reconcileFindings(tx, scanId, 'SECURITY', [...rows.values()]);
       if (marker) {
         await tx.scanEvidence.upsert({
           where: {
             scanId_type_sequence: {
               scanId,
               type: 'DOCUMENT_RESPONSE',
-              sequence: ASSESSMENT_SEQUENCE,
+              sequence: SECURITY_ASSESSMENT_SEQUENCE,
             },
           },
           create: {
             scanId,
             type: 'DOCUMENT_RESPONSE',
-            sequence: ASSESSMENT_SEQUENCE,
+            sequence: SECURITY_ASSESSMENT_SEQUENCE,
             data: marker,
           },
           update: { data: marker },
@@ -167,10 +171,10 @@ export class SecurityFindingService {
           where: {
             scanId,
             type: 'DOCUMENT_RESPONSE',
-            sequence: ASSESSMENT_SEQUENCE,
+            sequence: SECURITY_ASSESSMENT_SEQUENCE,
           },
         });
       }
-    });
+    }, { isolationLevel: 'Serializable' });
   }
 }

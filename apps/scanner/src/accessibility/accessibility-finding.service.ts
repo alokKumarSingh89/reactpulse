@@ -1,3 +1,4 @@
+import { reconcileFindings } from '../findings/reconcile-findings';
 import { Injectable } from '@nestjs/common';
 import {
   ACCESSIBILITY_RULE_IDS,
@@ -232,19 +233,7 @@ export class AccessibilityFindingService {
           },
         });
       }
-      await tx.finding.deleteMany({
-        where: { scanId, category: 'ACCESSIBILITY' },
-      });
-      if (rows.size)
-        await tx.finding.createMany({
-          data: [...rows.values()].sort((a, b) =>
-            a.fingerprint < b.fingerprint
-              ? -1
-              : a.fingerprint > b.fingerprint
-                ? 1
-                : 0,
-          ),
-        });
-    });
+      await reconcileFindings(tx, scanId, 'ACCESSIBILITY', [...rows.values()]);
+    }, { isolationLevel: 'Serializable' });
   }
 }

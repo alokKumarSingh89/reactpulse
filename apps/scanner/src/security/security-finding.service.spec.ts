@@ -55,9 +55,9 @@ function setup() {
     },
   );
   const deleteMany = vi.fn(
-    async ({ where }: { where: { scanId: string; category: string } }) => {
+    async ({ where }: { where: { scanId: string; category: string; fingerprint?: { notIn: string[] } } }) => {
       rows = rows.filter(
-        (r) => r.scanId !== where.scanId || r.category !== where.category,
+        (r) => r.scanId !== where.scanId || r.category !== where.category || !!where.fingerprint?.notIn.includes(r.fingerprint),
       );
     },
   );
@@ -71,13 +71,18 @@ function setup() {
       markers.delete(where.scanId);
     },
   );
+  const findMany = vi.fn(async ({ where }: { where: { scanId: string; category: string } }) =>
+    rows.filter(r => r.scanId === where.scanId && r.category === where.category));
+  const updateMany = vi.fn(async ({ where, data }: { where: { scanId: string; category: string; fingerprint: string }; data: Partial<Prisma.FindingCreateManyInput> }) => {
+    rows = rows.map(r => r.scanId === where.scanId && r.category === where.category && r.fingerprint === where.fingerprint ? { ...r, ...data } : r);
+  });
   const transaction = vi.fn(
     async (callback: (tx: unknown) => Promise<void>) => {
       const before = [...rows];
       const saved = new Map(markers);
       try {
         await callback({
-          finding: { deleteMany, createMany },
+          finding: { deleteMany, createMany, findMany, updateMany },
           scanEvidence: { upsert, deleteMany: removeMarker },
         });
       } catch (error) {
@@ -99,6 +104,7 @@ function setup() {
     },
     markers,
     createMany,
+    updateMany,
     deleteMany,
     upsert,
     removeMarker,
@@ -110,7 +116,7 @@ describe('SecurityFindingService', () => {
   it('projects fixed content, existing enums, safe references and no secret canaries', async () => {
     const h = setup();
     const input = evaluation([result(), result(true)]);
-    const secret = 'findings-email-canary@example.com findings-token-canary-9182 findings-input-secret-7712 findings-dom-secret-6631 findings-url-secret-5520 authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
+    const secret = 'persistence-email-canary@example.com persistence-token-canary-9182 persistence-query-secret-7712 persistence-dom-secret-6631 findings-email-canary@example.com findings-token-canary-9182 findings-input-secret-7712 findings-dom-secret-6631 findings-url-secret-5520 authorization-secret-canary-9f31_cookie-secret-canary-8ab2_query-secret-canary-74ce_nonce-secret-canary-27aa_console-secret-canary-13ef_filesystem-secret-canary-02dc';
     Object.assign(input, { headers: { authorization: secret }, url: secret });
     Object.assign(input.coverage, {
       extra: secret,
@@ -171,7 +177,7 @@ describe('SecurityFindingService', () => {
       'a60dcc2fe240fc771c13b96e595671acdd5bcd6e8b7f6cdb75406a6853635a1c',
     ]);
     expect(h.deleteMany).toHaveBeenCalledExactlyOnceWith({
-      where: { scanId: 'scan', category: 'SECURITY' },
+      where: { scanId: 'scan', category: 'SECURITY', fingerprint: { notIn: h.rows().map(r => r.fingerprint).sort() } },
     });
   });
   it('has stable fingerprints across retries and separates rules and subjects', async () => {
@@ -298,4 +304,12 @@ describe('SecurityFindingService', () => {
     await h.service.replaceForScan('scan', evaluation([result(), result()]));
     expect(h.rows()).toHaveLength(1);
   });
+});
+
+it.each(['OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'IGNORED', 'REGRESSION'] as const)('preserves same-scan %s on category retry', async status => {
+  const h = setup();
+  await h.service.replaceForScan('scan', evaluation([result()]));
+  h.seed(h.rows().map(r => ({ ...r, status })));
+  await h.service.replaceForScan('scan', evaluation([result()]));
+  expect(h.rows().every(r => r.status === status)).toBe(true);
 });

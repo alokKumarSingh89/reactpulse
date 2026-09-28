@@ -8,6 +8,7 @@ import { mapAccessibilityFindings } from './accessibility-finding-mapper';
 import { projectAccessibilityObservation } from './accessibility-projector';
 
 const canaries = [
+  'persistence-email-canary@example.com', 'persistence-token-canary-9182', 'persistence-query-secret-7712', 'persistence-dom-secret-6631',
   'accessibility-email-canary@example.com',
   'accessibility-token-canary-9182',
   'accessibility-input-secret-7712',
@@ -104,9 +105,9 @@ function setup() {
   let failCommit = false;
   let rows: Prisma.FindingCreateManyInput[] = [];
   const deleteMany = vi.fn(
-    async ({ where }: { where: { scanId: string; category: string } }) => {
+    async ({ where }: { where: { scanId: string; category: string; fingerprint?: { notIn: string[] } } }) => {
       rows = rows.filter(
-        (r) => r.scanId !== where.scanId || r.category !== where.category,
+        (r) => r.scanId !== where.scanId || r.category !== where.category || !!where.fingerprint?.notIn.includes(r.fingerprint),
       );
     },
   );
@@ -115,13 +116,18 @@ function setup() {
       rows.push(...data);
     },
   );
+  const findMany = vi.fn(async ({ where }: { where: { scanId: string; category: string } }) =>
+    rows.filter(r => r.scanId === where.scanId && r.category === where.category));
+  const updateMany = vi.fn(async ({ where, data }: { where: { scanId: string; category: string; fingerprint: string }; data: Partial<Prisma.FindingCreateManyInput> }) => {
+    rows = rows.map(r => r.scanId === where.scanId && r.category === where.category && r.fingerprint === where.fingerprint ? { ...r, ...data } : r);
+  });
   const transaction = vi.fn(
     async (callback: (tx: unknown) => Promise<void>) => {
       const before = rows.slice();
       const saved = new Map(markers);
       try {
         await callback({
-          finding: { deleteMany, createMany },
+          finding: { deleteMany, createMany, findMany, updateMany },
           scanEvidence: { upsert, deleteMany: removeMarker },
         });
         if (failCommit) throw new Error('commit failed');
@@ -149,6 +155,7 @@ function setup() {
     },
     transaction,
     deleteMany,
+    updateMany,
     createMany,
   };
 }
@@ -180,10 +187,10 @@ describe('AccessibilityFindingService', () => {
     await h.service.replaceForScan('scan', [], assessment());
     expect(h.rows()).toEqual(retained);
     expect(h.deleteMany).toHaveBeenLastCalledWith({
-      where: { scanId: 'scan', category: 'ACCESSIBILITY' },
+      where: { scanId: 'scan', category: 'ACCESSIBILITY', fingerprint: { notIn: [] } },
     });
     expect(h.transaction).toHaveBeenCalledTimes(3);
-    expect(h.createMany).toHaveBeenCalledTimes(2);
+    expect(h.createMany).toHaveBeenCalledTimes(1);
   });
 
   it('is logically idempotent, order independent and deduplicates identical candidates', async () => {
@@ -299,6 +306,7 @@ describe('AccessibilityFindingService', () => {
     await h.service.replaceForScan('scan', input, assessment());
     const before = h.rows();
     h.createMany.mockRejectedValueOnce(new Error('write failed'));
+      h.updateMany.mockRejectedValueOnce(new Error('write failed'));
     await expect(
       h.service.replaceForScan('scan', [input[0]], assessment()),
     ).rejects.toThrow('write failed');
@@ -374,7 +382,7 @@ describe('durable accessibility assessment', () => {
       if (stage === 'marker')
         h.upsert.mockRejectedValueOnce(new Error('write failed'));
       if (stage === 'finding')
-        h.createMany.mockRejectedValueOnce(new Error('write failed'));
+        h.updateMany.mockRejectedValueOnce(new Error('write failed'));
       if (stage === 'commit') h.failCommit();
       await expect(
         h.service.replaceForScan(
@@ -404,4 +412,12 @@ describe('durable accessibility assessment', () => {
     );
     expect(h.transaction).toHaveBeenCalledTimes(1);
   });
+});
+
+it.each(['OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'IGNORED', 'REGRESSION'] as const)('preserves same-scan %s on category retry', async status => {
+  const h = setup();
+  await h.service.replaceForScan('scan', candidates(), assessment());
+  h.seed(h.rows().map(r => ({ ...r, status })));
+  await h.service.replaceForScan('scan', candidates(), assessment());
+  expect(h.rows().every(r => r.status === status)).toBe(true);
 });

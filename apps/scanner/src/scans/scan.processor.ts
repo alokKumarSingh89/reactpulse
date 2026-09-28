@@ -1,3 +1,6 @@
+import { DeterministicFindingService } from '../findings/deterministic-finding.service';
+import { evaluatePerformanceFindings } from '../performance/performance-findings';
+import { evaluateNetworkFindings } from '../network/network-findings';
 import { AccessibilityFindingService } from '../accessibility/accessibility-finding.service';
 import { mapAccessibilityFindings } from '../accessibility/accessibility-finding-mapper';
 import { projectAccessibilityObservation } from '../accessibility/accessibility-projector';
@@ -51,6 +54,7 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly securityFindingService: SecurityFindingService,
 
     private readonly accessibilityFindingService: AccessibilityFindingService,
+    private readonly deterministicFindingService: DeterministicFindingService,
   ) {}
 
   onModuleInit(): void {
@@ -173,6 +177,10 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
        * PERFORMANCE
        * LONG_TASK
        */
+      // Evaluate before any finding reconciliation. A thrown evaluation follows
+      // the existing whole-scan failure/retry path, never successful empty data.
+      const performanceFindings = evaluatePerformanceFindings(result.performance.metrics);
+      const networkFindings = evaluateNetworkFindings(result.network, { throwOnInvalid: true });
       await this.scanEvidenceService.replaceForScan(scan.id, result);
 
       await this.performanceMetricService.replaceForScan(
@@ -202,6 +210,9 @@ export class ScanProcessor implements OnModuleInit, OnModuleDestroy {
           : [],
         accessibilityAssessment,
       );
+
+      await this.deterministicFindingService.replaceForScan(scan.id, 'PERFORMANCE', performanceFindings);
+      await this.deterministicFindingService.replaceForScan(scan.id, 'NETWORK', networkFindings);
 
       await this.database.client.scan.update({
         where: {

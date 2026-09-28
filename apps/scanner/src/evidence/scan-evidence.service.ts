@@ -1,3 +1,4 @@
+import { SECURITY_ASSESSMENT_SEQUENCE } from '../security/security-finding.service';
 import { ACCESSIBILITY_ASSESSMENT_SEQUENCE } from '../accessibility/accessibility-finding.service';
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
@@ -15,14 +16,14 @@ export class ScanEvidenceService {
     // Project before opening the transaction: no raw result reaches Prisma.
     const evidence = projectSafeEvidence(result);
     await this.database.client.$transaction(async (tx) => {
-      // Accessibility owns its marker and replaces it atomically with findings.
+      // Category services own their markers and reconcile them atomically with findings.
       // Preserve it here so a later failed reconciliation keeps the old pair.
       await tx.scanEvidence.deleteMany({
         where: {
           scanId,
           NOT: {
             type: 'DOCUMENT_RESPONSE',
-            sequence: ACCESSIBILITY_ASSESSMENT_SEQUENCE,
+            sequence: { in: [SECURITY_ASSESSMENT_SEQUENCE, ACCESSIBILITY_ASSESSMENT_SEQUENCE] },
           },
         },
       });

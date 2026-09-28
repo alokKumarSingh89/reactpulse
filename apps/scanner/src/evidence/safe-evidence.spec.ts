@@ -104,7 +104,7 @@ describe('safe evidence persistence', () => {
     expect(deleteMany).toHaveBeenCalledWith({
       where: {
         scanId: 'scan-id',
-        NOT: { type: 'DOCUMENT_RESPONSE', sequence: 2 },
+        NOT: { type: 'DOCUMENT_RESPONSE', sequence: { in: [1, 2] } },
       },
     });
     expect(deleteMany).toHaveBeenCalledBefore(createMany);

@@ -1,3 +1,4 @@
+import { DeterministicFindingService } from './findings/deterministic-finding.service';
 import { AccessibilityFindingService } from './accessibility/accessibility-finding.service';
 import { AccessibilityObservationService } from './accessibility/accessibility-observation.service';
 import { SecurityFindingService } from './security/security-finding.service';
@@ -109,6 +110,7 @@ import { TargetValidatorService } from './security/target-validator.service';
 
     ScanEvidenceService,
 
+    DeterministicFindingService,
     ScanProcessor,
   ],
 })

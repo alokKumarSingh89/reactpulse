@@ -16,17 +16,18 @@ type Candidate = Extract<
  */
 export function evaluateNetworkFindings(
   observation: Pick<NetworkObservation, 'failures'>,
+  options: { throwOnInvalid?: boolean } = {},
 ): (Candidate & { fingerprint: string })[] {
   try {
-    if (!Array.isArray(observation.failures)) return [];
+    if (!Array.isArray(observation.failures)) throw new Error();
     const requests = new Set<number>();
     for (const failure of observation.failures) {
-      if (!failure || typeof failure !== 'object') return [];
+      if (!failure || typeof failure !== 'object') throw new Error();
       const reference = failure.requestSequence;
-      if (!Number.isSafeInteger(reference) || reference < 0) return [];
+      if (!Number.isSafeInteger(reference) || reference < 0) throw new Error();
       // Normal collector events identify one failed request. Fail closed on
       // malformed duplicates instead of manufacturing or inflating its count.
-      if (requests.has(reference)) return [];
+      if (requests.has(reference)) throw new Error();
       requests.add(reference);
     }
     if (!requests.size) return [];
@@ -59,6 +60,8 @@ export function evaluateNetworkFindings(
         ]
       : [];
   } catch {
+    if (options.throwOnInvalid)
+      throw new Error('Invalid network finding observations');
     return [];
   }
 }

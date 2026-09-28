@@ -1,3 +1,4 @@
+import type { DeterministicFindingService } from '../findings/deterministic-finding.service';
 import type { AccessibilityFindingService } from '../accessibility/accessibility-finding.service';
 import type { AccessibilityObservation } from '../accessibility/accessibility-observation.service';
 import { describe, expect, it, vi } from 'vitest';
@@ -29,7 +30,7 @@ function setup(attemptsMade = 0, security = true) {
     accessibility: undefined as AccessibilityObservation | undefined,
     browser: { name: 'chromium', version: '1' },
     performance: { metrics: {} },
-    network: {},
+    network: { requests: [], responses: [], failures: [] },
     security: security
       ? {
           assessment: {
@@ -72,6 +73,7 @@ function setup(attemptsMade = 0, security = true) {
     network = step('network'),
     findings = step('security'),
     accessibility = step('accessibility');
+  const deterministic = { replaceForScan: vi.fn(async (_scanId: string, category: string, _candidates: unknown[]) => { order.push(category); }) };
   const processor = new ScanProcessor(
     {
       client: { scan: { findUnique: vi.fn().mockResolvedValue(scan), update } },
@@ -88,6 +90,7 @@ function setup(attemptsMade = 0, security = true) {
     network as unknown as NetworkMetricService,
     findings as unknown as SecurityFindingService,
     accessibility as unknown as AccessibilityFindingService,
+    deterministic as unknown as DeterministicFindingService,
   );
   // Exercise the job handler without starting a Redis worker.
   const run = () =>
@@ -101,7 +104,7 @@ function setup(attemptsMade = 0, security = true) {
       attemptsMade,
       opts: { attempts: 2 },
     } as Job<ExecuteScanJob>);
-  return { run, order, update, findings, accessibility, result };
+  return { run, order, update, findings, accessibility, deterministic, result };
 }
 
 describe('security persistence orchestration', () => {
@@ -116,6 +119,8 @@ describe('security persistence orchestration', () => {
       'network',
       'security',
       'accessibility',
+      'PERFORMANCE',
+      'NETWORK',
       'COMPLETED',
     ]);
     expect(h.findings.replaceForScan).toHaveBeenCalledWith(
@@ -204,9 +209,11 @@ describe('accessibility persistence orchestration', () => {
     expect(
       JSON.stringify(h.accessibility.replaceForScan.mock.calls),
     ).not.toContain('private-canary');
-    expect(h.order.slice(-3)).toEqual([
+    expect(h.order.slice(-5)).toEqual([
       'security',
       'accessibility',
+      'PERFORMANCE',
+      'NETWORK',
       'COMPLETED',
     ]);
   });
@@ -241,7 +248,9 @@ describe('accessibility persistence orchestration', () => {
         'network',
         'security',
         'accessibility',
-        'COMPLETED',
+        'PERFORMANCE',
+      'NETWORK',
+      'COMPLETED',
       ]);
     },
   );
@@ -268,4 +277,43 @@ describe('accessibility persistence orchestration', () => {
       );
     },
   );
+});
+
+
+describe('deterministic performance and network pipeline', () => {
+  it('persists only approved candidates before completion', async () => {
+    const h = setup();
+    Object.assign(h.result.performance.metrics, { lcpMs: 2501, cls: 0.101 });
+    Object.assign(h.result.network, { failures: [{ requestSequence: 0 }] });
+    await h.run();
+    expect(h.deterministic.replaceForScan).toHaveBeenNthCalledWith(1, 'scan', 'PERFORMANCE', [
+      expect.objectContaining({ ruleId: 'performance.lcp.above-good-threshold' }),
+      expect.objectContaining({ ruleId: 'performance.synthetic-cls.above-good-threshold' }),
+    ]);
+    expect(h.deterministic.replaceForScan).toHaveBeenNthCalledWith(2, 'scan', 'NETWORK', [expect.objectContaining({ ruleId: 'network.request-failure-observed', severity: 'INFO' })]);
+    expect(h.order.slice(-3)).toEqual(['PERFORMANCE', 'NETWORK', 'COMPLETED']);
+  });
+  it('successful empty evaluations reconcile to empty sets', async () => {
+    const h = setup();
+    Object.assign(h.result.performance.metrics, { lcpMs: 2500, cls: 0.1 });
+    await h.run();
+    expect(h.deterministic.replaceForScan).toHaveBeenCalledWith('scan', 'PERFORMANCE', []);
+    expect(h.deterministic.replaceForScan).toHaveBeenCalledWith('scan', 'NETWORK', []);
+  });
+  it('a thrown performance evaluator does not reconcile any finding set', async () => {
+    const h = setup();
+    Object.defineProperty(h.result.performance.metrics, 'lcpMs', { get() { throw new Error('persistence-token-canary-9182'); } });
+    await expect(h.run()).rejects.toThrow('ReactPulse could not complete');
+    expect(h.deterministic.replaceForScan).not.toHaveBeenCalled();
+    expect(h.findings.replaceForScan).not.toHaveBeenCalled();
+    expect(h.accessibility.replaceForScan).not.toHaveBeenCalled();
+    expect(h.order).not.toContain('COMPLETED');
+    expect(JSON.stringify(h.update.mock.calls)).not.toContain('persistence-token');
+  });
+  it('malformed network observations are failure, not destructive empty success', async () => {
+    const h = setup();
+    Object.assign(h.result.network, { failures: null });
+    await expect(h.run()).rejects.toThrow('ReactPulse could not complete');
+    expect(h.deterministic.replaceForScan).not.toHaveBeenCalled();
+  });
 });
